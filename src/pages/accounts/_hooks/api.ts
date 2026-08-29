@@ -87,3 +87,34 @@ export function useRestoreAccount(id: string) {
     invalidateKeys: ACCOUNT_INVALIDATIONS,
   });
 }
+
+export type TAccountHistoryRow = {
+  id: string;
+  type: 'income' | 'expense';
+  amountCentavos: number;
+  txnDate: string;
+  note: string | null;
+  source: string;
+  categoryName: string;
+  categoryIcon: string | null;
+  categoryColor: string | null;
+  /** Balance AFTER this transaction, opening balance included. */
+  runningBalanceCentavos: number;
+};
+
+/**
+ * One account's ledger with a running balance.
+ *
+ * `enabled` keeps this from firing for every row on the page — only the account
+ * whose history panel is actually open fetches.
+ */
+export function useAccountHistory(id: string | null, pageNumber: number) {
+  return useGet<TAccountHistoryRow[]>({
+    isList: true,
+    url: `/api/v1/accounts/${id ?? ''}/history`,
+    key: [ACCOUNTS_KEY, toKeyPart(id), 'history', toKeyPart(pageNumber)],
+    params: { pageNumber, pageSize: 25 },
+    enabled: Boolean(id),
+    staleTime: 30_000,
+  });
+}

@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Archive, ArchiveRestore, Pencil, Plus, Star } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  History,
+  Pencil,
+  Plus,
+  Star,
+} from 'lucide-react';
 import {
   AmountText,
   ConfirmDialog,
@@ -36,12 +43,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { formatDisplayDate } from '@/lib/date';
+import { useIsMobile } from '@/hooks/useMobile';
 import { MoneyInput } from '@/components/finance';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { cn } from '@/lib/utils';
 import { centavosToInputString, formatPeso, parsePesoInput } from '@/lib/money';
 import { ACCOUNT_ICONS, INIT_ACCOUNT } from './_constant';
 import {
+  useAccountHistory,
   useAccounts,
   useCreateAccount,
   useDeleteAccount,
@@ -60,6 +77,7 @@ export default function AccountsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<TAccount | null>(null);
+  const [viewing, setViewing] = useState<TAccount | null>(null);
 
   const { data, isPending, isError, refetch } = useAccounts({
     includeArchived: showArchived,
@@ -98,7 +116,12 @@ export default function AccountsPage() {
       ) : (
         <ul className="overflow-hidden rounded-lg border bg-card">
           {accounts.map((a) => (
-            <AccountRow key={a.id} account={a} onEdit={() => setEditing(a)} />
+            <AccountRow
+              key={a.id}
+              account={a}
+              onEdit={() => setEditing(a)}
+              onHistory={() => setViewing(a)}
+            />
           ))}
         </ul>
       )}
@@ -111,6 +134,8 @@ export default function AccountsPage() {
           <AccountFormBody onDone={() => setCreating(false)} />
         </DialogContent>
       </Dialog>
+
+      <AccountHistoryPanel account={viewing} onClose={() => setViewing(null)} />
 
       {editing ? (
         <Dialog open onOpenChange={(next) => !next && setEditing(null)}>
@@ -132,9 +157,11 @@ export default function AccountsPage() {
 function AccountRow({
   account,
   onEdit,
+  onHistory,
 }: {
   account: TAccount;
   onEdit: () => void;
+  onHistory: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const del = useDeleteAccount(account.id);
@@ -185,6 +212,15 @@ function AccountRow({
           </span>
         ) : null}
       </span>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onHistory}
+        aria-label={`History for ${account.name}`}
+      >
+        <History className="size-3.5" />
+      </Button>
 
       {account.isArchived ? (
         <Button
@@ -420,5 +456,134 @@ function AccountFormBody({
         </div>
       </form>
     </Form>
+  );
+}
+
+/**
+ * One account's ledger, newest first, with the balance as of each row.
+ *
+ * The running balance is computed server-side with a window function. Summing
+ * the page here would restart from zero on page 2 and print wrong balances,
+ * which is worse than showing none at all.
+ */
+function AccountHistoryPanel({
+  account,
+  onClose,
+}: {
+  account: TAccount | null;
+  onClose: () => void;
+}) {
+  const isMobile = useIsMobile();
+  const [page, setPage] = useState(1);
+
+  // A fresh account starts at page 1 rather than inheriting the last one's.
+  const id = account?.id ?? null;
+  const [lastId, setLastId] = useState<string | null>(id);
+  if (id !== lastId) {
+    setLastId(id);
+    setPage(1);
+  }
+
+  const { data, isPending, isError, refetch } = useAccountHistory(id, page);
+  const rows = data?.result ?? [];
+  const meta = data?.meta;
+
+  return (
+    <Sheet open={account !== null} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className={
+          isMobile ? 'max-h-[88dvh] rounded-t-2xl' : 'w-full sm:max-w-lg'
+        }
+      >
+        <SheetHeader>
+          <SheetTitle>{account?.name ?? 'History'}</SheetTitle>
+          <SheetDescription>
+            {account
+              ? `Balance ${formatPeso(account.currentBalanceCentavos)}${
+                  account.openingBalanceCentavos !== 0
+                    ? ` · opened at ${formatPeso(account.openingBalanceCentavos)}`
+                    : ''
+                }`
+              : null}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
+          {isError ? (
+            <ErrorState
+              title="Could not load history"
+              retry={() => void refetch()}
+            />
+          ) : isPending && rows.length === 0 ? (
+            <div className="flex flex-col gap-2 pt-2">
+              {Array.from({ length: 6 }, (_, i) => (
+                <Skeleton key={i} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : rows.length === 0 ? (
+            <EmptyState
+              title="Nothing here yet"
+              description="No income or expenses have been recorded on this account."
+              icon={<History className="size-5" />}
+            />
+          ) : (
+            <ul className="flex flex-col">
+              {rows.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex items-center gap-3 border-b py-2.5 last:border-b-0"
+                >
+                  <CategoryIcon name={r.categoryIcon} color={r.categoryColor} />
+
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm font-medium">
+                      {r.categoryName}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {formatDisplayDate(r.txnDate)}
+                      {r.note ? ` · ${r.note}` : ''}
+                    </span>
+                  </span>
+
+                  <span className="flex shrink-0 flex-col items-end">
+                    <AmountText centavos={r.amountCentavos} kind={r.type} />
+                    {/* The point of the panel: what the account held at
+                        this moment, not just what moved. */}
+                    <span className="tnum text-2xs text-muted-foreground/70">
+                      {formatPeso(r.runningBalanceCentavos)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {meta && (meta.hasPrevious || meta.hasNext) ? (
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!meta.hasPrevious}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Newer
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {meta.total} entr{meta.total === 1 ? 'y' : 'ies'}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!meta.hasNext}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Older
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
