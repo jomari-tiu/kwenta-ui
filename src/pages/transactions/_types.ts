@@ -23,6 +23,8 @@ export type TTransaction = {
    * twice.
    */
   installmentPaymentId: string | null;
+  /** Set when this expense is a credit-loan repayment — READ-ONLY here. */
+  creditLoanId: string | null;
   recurringRuleId: string | null;
   isEdited: boolean;
   category: TTransactionRef;

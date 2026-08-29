@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CalendarOff,
   HandCoins,
+  History,
   Pencil,
   Plus,
   Trash2,
@@ -37,6 +38,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/useMobile';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AmountText,
@@ -52,6 +61,8 @@ import { useAccounts } from '@/pages/accounts/_hooks/api';
 import { useCategories } from '@/pages/categories/_hooks/api';
 import {
   useCreateCreditLoan,
+  useCreditLoan,
+  useDeleteRepayment,
   useCreditLoanSummary,
   useCreditLoans,
   useDeleteCreditLoan,
@@ -71,6 +82,7 @@ export default function CreditLoansPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<TCreditLoan | null>(null);
   const [repaying, setRepaying] = useState<TCreditLoan | null>(null);
+  const [viewing, setViewing] = useState<TCreditLoan | null>(null);
 
   const { data, isPending, isError, refetch } = useCreditLoans(status);
   const { data: summaryData } = useCreditLoanSummary();
@@ -138,10 +150,13 @@ export default function CreditLoansPage() {
               loan={loan}
               onEdit={() => setEditing(loan)}
               onRepay={() => setRepaying(loan)}
+              onHistory={() => setViewing(loan)}
             />
           ))}
         </ul>
       )}
+
+      <RepaymentHistoryPanel loan={viewing} onClose={() => setViewing(null)} />
 
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent className="sm:max-w-md">
@@ -204,10 +219,12 @@ function LoanCard({
   loan,
   onEdit,
   onRepay,
+  onHistory,
 }: {
   loan: TCreditLoan;
   onEdit: () => void;
   onRepay: () => void;
+  onHistory: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const del = useDeleteCreditLoan(loan.id);
@@ -282,6 +299,14 @@ function LoanCard({
             Record payment
           </Button>
         ) : null}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onHistory}
+          aria-label="Payment history"
+        >
+          <History className="size-3.5" />
+        </Button>
         <Button variant="ghost" size="sm" onClick={onEdit} aria-label="Edit">
           <Pencil className="size-3.5" />
         </Button>
@@ -633,5 +658,135 @@ function RepayForm({
         </div>
       </form>
     </Form>
+  );
+}
+
+/**
+ * Every repayment recorded against a loan, and the only place one can be
+ * removed. The transactions module shows the same rows read-only — one record,
+ * one owner.
+ */
+function RepaymentHistoryPanel({
+  loan,
+  onClose,
+}: {
+  loan: TCreditLoan | null;
+  onClose: () => void;
+}) {
+  const isMobile = useIsMobile();
+  const { data, isPending, isError, refetch } = useCreditLoan(loan?.id ?? '');
+  const detail = data?.result;
+  const repayments = detail?.repayments ?? [];
+
+  return (
+    <Sheet open={loan !== null} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className={
+          isMobile ? 'max-h-[88dvh] rounded-t-2xl' : 'w-full sm:max-w-md'
+        }
+      >
+        <SheetHeader>
+          <SheetTitle>{loan?.name ?? 'Payments'}</SheetTitle>
+          <SheetDescription>
+            {loan
+              ? `${formatPeso(loan.repaidCentavos)} repaid of ${formatPeso(
+                  loan.principalCentavos,
+                )} · ${formatPeso(loan.outstandingCentavos)} left`
+              : null}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
+          {isError ? (
+            <ErrorState
+              title="Could not load payments"
+              retry={() => void refetch()}
+            />
+          ) : isPending && repayments.length === 0 ? (
+            <div className="flex flex-col gap-2 pt-2">
+              {Array.from({ length: 3 }, (_, i) => (
+                <Skeleton key={i} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : repayments.length === 0 ? (
+            <EmptyState
+              title="No payments yet"
+              description="Record one with the Record payment button."
+              icon={<History className="size-5" />}
+            />
+          ) : (
+            <ul className="flex flex-col">
+              {repayments.map((r) => (
+                <RepaymentRow
+                  key={r.id}
+                  loanId={loan?.id ?? ''}
+                  repayment={r}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function RepaymentRow({
+  loanId,
+  repayment,
+}: {
+  loanId: string;
+  repayment: {
+    id: string;
+    amountCentavos: number;
+    txnDate: string;
+    note: string | null;
+  };
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const del = useDeleteRepayment(loanId);
+
+  async function handleDelete() {
+    await del.mutateAsync({ transactionId: repayment.id });
+    toast.success('Payment removed — the loan balance went back up');
+    setConfirming(false);
+  }
+
+  return (
+    <li className="flex items-center gap-3 border-b py-2.5 last:border-b-0">
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-sm font-medium">
+          {formatDisplayDate(repayment.txnDate)}
+        </span>
+        {repayment.note ? (
+          <span className="truncate text-xs text-muted-foreground">
+            {repayment.note}
+          </span>
+        ) : null}
+      </span>
+
+      <AmountText centavos={repayment.amountCentavos} kind="expense" />
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setConfirming(true)}
+        aria-label="Remove payment"
+      >
+        <Trash2 className="size-3.5 text-destructive" />
+      </Button>
+
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => void handleDelete()}
+        title="Remove this payment?"
+        description="The expense is deleted from your ledger and the loan's outstanding balance goes back up."
+        confirmLabel="Remove"
+        tone="danger"
+        loading={del.isPending}
+      />
+    </li>
   );
 }

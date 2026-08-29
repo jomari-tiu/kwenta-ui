@@ -90,3 +90,15 @@ export function useRepayCreditLoan(id: string) {
     invalidateKeys: [...LEDGER_KEYS, [CREDIT_LOANS_KEY]],
   });
 }
+
+/**
+ * Undo a repayment, from the module that owns it. The loan's balance is derived
+ * from these rows, so removing one simply puts the outstanding amount back.
+ */
+export function useDeleteRepayment(loanId: string) {
+  return useMutate<{ transactionId: string }, unknown>({
+    url: (v) => `/api/v1/credit-loans/${loanId}/repayments/${v.transactionId}`,
+    method: 'delete',
+    invalidateKeys: [...LEDGER_KEYS, [CREDIT_LOANS_KEY]],
+  });
+}

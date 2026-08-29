@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Download, Pencil, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import {
+  Download,
+  ExternalLink,
+  Pencil,
+  SlidersHorizontal,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useNavigate } from 'react-router';
 import {
   AmountText,
   ConfirmDialog,
@@ -529,8 +537,15 @@ function TransactionTable({
               <td className="px-3 py-2.5 text-muted-foreground">
                 {t.account.name}
               </td>
-              <td className="max-w-48 truncate px-3 py-2.5 text-muted-foreground">
-                {t.note ?? '—'}
+              <td className="max-w-48 px-3 py-2.5 text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate">{t.note ?? '—'}</span>
+                  {t.creditLoanId !== null ? (
+                    <Badge variant="secondary" className="shrink-0">
+                      Loan
+                    </Badge>
+                  ) : null}
+                </span>
               </td>
               <td className="px-3 py-2.5 text-right">
                 <AmountText centavos={t.amountCentavos} kind={t.type} />
@@ -586,11 +601,29 @@ function RowActions({
 }) {
   const [confirming, setConfirming] = useState(false);
   const del = useDeleteTransaction(txn.id);
+  const navigate = useNavigate();
 
   async function handleDelete() {
     await del.mutateAsync();
     toast.success('Transaction deleted');
     setConfirming(false);
+  }
+
+  // A repayment belongs to its loan. Editing it here would move the loan's
+  // outstanding balance from a screen that shows no loan, so this row is
+  // display-only and both actions collapse into "go where it lives".
+  if (txn.creditLoanId !== null) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => void navigate('/credit-loans')}
+        aria-label="Open in Credit Loans"
+        title="Managed in Credit Loans"
+      >
+        <ExternalLink className="size-3.5" />
+      </Button>
+    );
   }
 
   return (
