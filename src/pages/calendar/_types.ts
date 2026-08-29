@@ -32,6 +32,20 @@ export type TCalendarLoanDue = {
   isOverdue: boolean;
 };
 
+/**
+ * A savings goal landing on this day. NOT a due: being short of a goal is not
+ * being late on a debt, so this never reddens the day.
+ */
+export type TCalendarFundTarget = {
+  id: string;
+  name: string;
+  provider: string | null;
+  targetDate: string;
+  targetCentavos: number | null;
+  netContributedCentavos: number;
+  isReached: boolean;
+};
+
 export type TCalendarProjection = {
   ruleId: string;
   ruleName: string;
@@ -54,6 +68,7 @@ export type TCalendarDay = {
   entries: TTransaction[];
   dues: TCalendarDue[];
   loanDues: TCalendarLoanDue[];
+  fundTargets: TCalendarFundTarget[];
   projections: TCalendarProjection[];
 };
 

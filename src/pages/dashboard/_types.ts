@@ -47,6 +47,16 @@ export type TDashboardSummary = {
     percentUsed: number | null;
     isOverBudget: boolean;
   }[];
+  investments: {
+    activeCount: number;
+    fundedCount: number;
+    untargetedCount: number;
+    totalNetContributedCentavos: number;
+    /** Null when nothing is valued — a ₱0 total would read as a total loss. */
+    totalCurrentValueCentavos: number | null;
+    totalGainCentavos: number | null;
+    nextTargetDate: string | null;
+  };
   creditLoans: {
     openCount: number;
     overdueCount: number;

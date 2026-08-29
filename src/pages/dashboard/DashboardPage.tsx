@@ -128,7 +128,7 @@ export default function DashboardPage() {
             </p>
           </section>
 
-          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <Tile label="Income" centavos={d.incomeCentavos} tone="income" />
             <Tile
               label="Expenses"
@@ -151,10 +151,7 @@ export default function DashboardPage() {
                   : undefined
               }
             />
-            {/* Spans the full width on a phone so the 5th tile doesn't leave a
-                half-empty row. */}
             <Tile
-              className="col-span-2 lg:col-span-1"
               label="Loans outstanding"
               centavos={d.creditLoans.totalOutstandingCentavos}
               tone="expense"
@@ -163,6 +160,22 @@ export default function DashboardPage() {
                 d.creditLoans.overdueCount > 0
                   ? `${d.creditLoans.overdueCount} overdue`
                   : undefined
+              }
+            />
+            <Tile
+              label="Invested"
+              centavos={d.investments.totalNetContributedCentavos}
+              hint={
+                d.investments.totalGainCentavos === null
+                  ? undefined
+                  : `${d.investments.totalGainCentavos >= 0 ? '+' : '−'}${formatPeso0(Math.abs(d.investments.totalGainCentavos))} vs cost`
+              }
+              hintTone={
+                d.investments.totalGainCentavos === null
+                  ? undefined
+                  : d.investments.totalGainCentavos >= 0
+                    ? 'good'
+                    : 'bad'
               }
             />
           </dl>
@@ -339,6 +352,7 @@ function Tile({
   tone,
   warn,
   hint,
+  hintTone,
   className,
 }: {
   label: string;
@@ -347,6 +361,7 @@ function Tile({
   tone?: 'income' | 'expense';
   warn?: boolean;
   hint?: string;
+  hintTone?: 'good' | 'bad';
   className?: string;
 }) {
   return (
@@ -372,7 +387,16 @@ function Tile({
           />
         )}
         {hint ? (
-          <span className="mt-0.5 block text-2xs font-semibold text-warn">
+          <span
+            className={cn(
+              'mt-0.5 block text-2xs font-semibold',
+              hintTone === 'good'
+                ? 'text-ink-income'
+                : hintTone === 'bad'
+                  ? 'text-ink-expense'
+                  : 'text-warn',
+            )}
+          >
             {hint}
           </span>
         ) : null}

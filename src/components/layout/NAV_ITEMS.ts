@@ -5,6 +5,7 @@ import {
   ListOrdered,
   Receipt,
   HandCoins,
+  PiggyBank,
   Repeat,
   Tags,
   Target,
@@ -65,6 +66,13 @@ export const NAV_ITEMS: TNavItem[] = [
     label: 'Credit Loans',
     to: '/credit-loans',
     icon: HandCoins,
+    section: 'main',
+  },
+  {
+    key: 'investments',
+    label: 'Investments',
+    to: '/investments',
+    icon: PiggyBank,
     section: 'main',
   },
   {

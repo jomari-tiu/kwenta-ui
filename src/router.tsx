@@ -33,6 +33,9 @@ const InstallmentDetailPage = lazy(
 const CreditLoansPage = lazy(
   () => import('@/pages/credit-loans/CreditLoansPage'),
 );
+const InvestmentsPage = lazy(
+  () => import('@/pages/investments/InvestmentsPage'),
+);
 const RecurringRulesPage = lazy(
   () => import('@/pages/recurring-rules/RecurringRulesPage'),
 );
@@ -79,6 +82,7 @@ export const router = createBrowserRouter([
             element: page(<InstallmentDetailPage />),
           },
           { path: '/credit-loans', element: page(<CreditLoansPage />) },
+          { path: '/investments', element: page(<InvestmentsPage />) },
           { path: '/recurring-rules', element: page(<RecurringRulesPage />) },
           { path: '/budgets', element: page(<BudgetsPage />) },
           { path: '/categories', element: page(<CategoriesPage />) },
