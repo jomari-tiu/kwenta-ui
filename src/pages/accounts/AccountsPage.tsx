@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   Star,
+  TriangleAlert,
 } from 'lucide-react';
 import {
   AmountText,
@@ -43,6 +44,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Sheet,
   SheetContent,
@@ -84,8 +86,29 @@ export default function AccountsPage() {
   });
   const accounts = data?.result ?? [];
 
+  const overdrawn = (data?.result ?? []).filter(
+    (a) => a.kind !== 'credit_card' && a.currentBalanceCentavos < 0,
+  );
+
   return (
     <div className="flex flex-col gap-4">
+      {overdrawn.length > 0 ? (
+        <Alert variant="destructive">
+          <TriangleAlert />
+          <AlertTitle>
+            {overdrawn.length === 1
+              ? `${overdrawn[0].name} is negative`
+              : `${overdrawn.length} accounts are negative`}
+          </AlertTitle>
+          <AlertDescription>
+            {overdrawn
+              .map((a) => `${a.name} ${formatPeso(a.currentBalanceCentavos)}`)
+              .join(' · ')}
+            {' — '}usually the wrong account on some transactions rather than a
+            real shortfall. Open an account's history to find them.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Label className="flex items-center gap-2 font-normal text-muted-foreground">
           <Switch checked={showArchived} onCheckedChange={setShowArchived} />

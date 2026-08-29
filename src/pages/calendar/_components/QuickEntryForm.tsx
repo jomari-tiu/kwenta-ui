@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { overdraftRisk, type TOverdraftRisk } from '@/lib/overdraft';
+import { OverdraftConfirm } from '@/components/finance/OverdraftConfirm';
+import { useAccounts } from '@/pages/accounts/_hooks/api';
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -22,6 +25,11 @@ export function QuickEntryForm({ date }: { date: string }) {
   // its state via defaultValues.
   const [formKey, setFormKey] = useState(0);
   const create = useCreateTransaction();
+  const { data: accountData } = useAccounts();
+  const [pending, setPending] = useState<{
+    values: TTransactionFormValues;
+    risk: TOverdraftRisk;
+  } | null>(null);
 
   const defaultValues: TTransactionFormValues = {
     type: 'expense',
@@ -32,9 +40,26 @@ export function QuickEntryForm({ date }: { date: string }) {
     note: '',
   };
 
-  async function handleSubmit(values: TTransactionFormValues) {
+  async function handleSubmit(
+    values: TTransactionFormValues,
+    confirmed = false,
+  ) {
     const amountCentavos = parsePesoInput(values.amount);
     if (amountCentavos === null || amountCentavos <= 0) return;
+
+    // Warn, never block — see OverdraftConfirm.
+    if (!confirmed) {
+      const risk = overdraftRisk({
+        type: values.type,
+        accountId: values.accountId,
+        amountCentavos,
+        accounts: accountData?.result ?? [],
+      });
+      if (risk) {
+        setPending({ values, risk });
+        return;
+      }
+    }
 
     await create.mutateAsync({
       type: values.type,
@@ -47,6 +72,7 @@ export function QuickEntryForm({ date }: { date: string }) {
 
     localStorage.setItem(LAST_ACCOUNT_KEY, values.accountId);
     toast.success('Added');
+    setPending(null);
     setFormKey((k) => k + 1);
   }
 
@@ -84,6 +110,14 @@ export function QuickEntryForm({ date }: { date: string }) {
         defaultValues={defaultValues}
         loading={create.isPending}
         onSubmit={(v) => void handleSubmit(v)}
+      />
+
+      <OverdraftConfirm
+        risk={pending?.risk ?? null}
+        onCancel={() => setPending(null)}
+        onConfirm={() => {
+          if (pending) void handleSubmit(pending.values, true);
+        }}
       />
     </div>
   );

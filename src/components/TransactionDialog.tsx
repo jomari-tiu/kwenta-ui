@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -6,6 +7,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { todayPlainDate } from '@/lib/date';
+import { overdraftRisk, type TOverdraftRisk } from '@/lib/overdraft';
+import { OverdraftConfirm } from '@/components/finance/OverdraftConfirm';
+import { useAccounts } from '@/pages/accounts/_hooks/api';
 import { parsePesoInput, centavosToInputString } from '@/lib/money';
 import { TransactionForm } from '@/pages/transactions/_form/TransactionForm';
 import {
@@ -64,9 +68,44 @@ export function TransactionDialog({
           note: '',
         };
 
-  async function handleSubmit(values: TTransactionFormValues) {
+  const { data: accountData } = useAccounts();
+  const [pending, setPending] = useState<{
+    values: TTransactionFormValues;
+    risk: TOverdraftRisk;
+  } | null>(null);
+
+  /**
+   * Overdraft is WARNED, never blocked: the app records what happened, and
+   * refusing to save one would make the books wrong on purpose. Confirming just
+   * proceeds.
+   */
+  async function handleSubmit(
+    values: TTransactionFormValues,
+    confirmed = false,
+  ) {
     const amountCentavos = parsePesoInput(values.amount);
     if (amountCentavos === null || amountCentavos <= 0) return;
+
+    if (!confirmed) {
+      const risk = overdraftRisk({
+        type: values.type,
+        accountId: values.accountId,
+        amountCentavos,
+        accounts: accountData?.result ?? [],
+        existing:
+          mode === 'edit' && existing
+            ? {
+                accountId: existing.account.id,
+                type: existing.type,
+                amountCentavos: existing.amountCentavos,
+              }
+            : null,
+      });
+      if (risk) {
+        setPending({ values, risk });
+        return;
+      }
+    }
 
     const payload = {
       type: values.type,
@@ -85,6 +124,7 @@ export function TransactionDialog({
       localStorage.setItem(LAST_ACCOUNT_KEY, values.accountId);
       toast.success('Transaction added');
     }
+    setPending(null);
     onClose();
   }
 
@@ -104,6 +144,14 @@ export function TransactionDialog({
           onCancel={onClose}
         />
       </DialogContent>
+
+      <OverdraftConfirm
+        risk={pending?.risk ?? null}
+        onCancel={() => setPending(null)}
+        onConfirm={() => {
+          if (pending) void handleSubmit(pending.values, true);
+        }}
+      />
     </Dialog>
   );
 }

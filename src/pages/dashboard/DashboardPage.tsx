@@ -9,6 +9,7 @@ import {
   RankedBarList,
 } from '@/components/finance';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -114,6 +115,27 @@ export default function DashboardPage() {
         <DashboardSkeleton />
       ) : d ? (
         <>
+          {d.accountBalances.some(
+            (a) => a.kind !== 'credit_card' && a.currentBalanceCentavos < 0,
+          ) ? (
+            <Alert variant="destructive">
+              <TriangleAlert />
+              <AlertTitle>An account is negative</AlertTitle>
+              <AlertDescription>
+                {d.accountBalances
+                  .filter(
+                    (a) =>
+                      a.kind !== 'credit_card' && a.currentBalanceCentavos < 0,
+                  )
+                  .map(
+                    (a) => `${a.name} ${formatPeso(a.currentBalanceCentavos)}`,
+                  )
+                  .join(' · ')}
+                {' — '}check the account on those transactions.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           {/* Exactly ONE hero figure per view. Proportional figures, not
               tabular — tabular gives every digit a zero's width and makes a big
               number look loose. */}

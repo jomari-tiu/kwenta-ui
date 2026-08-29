@@ -22,6 +22,7 @@ import { MoneyInput } from '@/components/finance';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { useCategories } from '@/pages/categories/_hooks/api';
 import { useAccounts } from '@/pages/accounts/_hooks/api';
+import { formatPeso } from '@/lib/money';
 import { transactionSchema, type TTransactionFormValues } from '../_types';
 
 export type TransactionFormProps = {
@@ -203,7 +204,22 @@ function Fields({
               <SelectContent>
                 {accounts.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
-                    {a.name}
+                    {/* The balance sits in the picker because most wrong-account
+                        entries are a mis-tap, not a decision — seeing the
+                        number is what catches it before saving. */}
+                    <span className="flex w-full items-center justify-between gap-4">
+                      <span>{a.name}</span>
+                      <span
+                        className={cn(
+                          'tnum text-xs',
+                          a.currentBalanceCentavos < 0
+                            ? 'text-ink-expense'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {formatPeso(a.currentBalanceCentavos)}
+                      </span>
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
