@@ -131,7 +131,52 @@ export default function DashboardPage() {
           {/* Spending and Saved are separate on purpose: money in a fund is
               money you still have, and adding it to groceries would make the
               expense figure mean nothing. income − spending − saved = net. */}
-          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <dt className="text-2xs font-bold tracking-wide text-text-muted uppercase">
+                Disposable money
+              </dt>
+              <dd className="mt-1">
+                <AmountText
+                  centavos={d.disposableCentavos}
+                  kind="net"
+                  size="lg"
+                />
+                <span className="mt-0.5 block text-2xs text-text-muted">
+                  across your accounts, ready to spend
+                </span>
+              </dd>
+            </div>
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <dt className="text-2xs font-bold tracking-wide text-text-muted uppercase">
+                Invested money
+              </dt>
+              <dd className="mt-1">
+                <AmountText centavos={d.investedCentavos} size="lg" />
+                <span className="mt-0.5 block text-2xs text-text-muted">
+                  set aside in funds ·{' '}
+                  {formatPeso0(d.disposableCentavos + d.investedCentavos)} all
+                  in
+                </span>
+                {d.investments.totalGainCentavos !== null ? (
+                  <span
+                    className={cn(
+                      'mt-0.5 block text-2xs font-semibold',
+                      d.investments.totalGainCentavos >= 0
+                        ? 'text-ink-income'
+                        : 'text-ink-expense',
+                    )}
+                  >
+                    {d.investments.totalGainCentavos >= 0 ? '+' : '−'}
+                    {formatPeso0(Math.abs(d.investments.totalGainCentavos))} vs
+                    cost
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+          </dl>
+
+          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <Tile label="Income" centavos={d.incomeCentavos} tone="income" />
             <Tile
               label="Spending"
@@ -173,23 +218,6 @@ export default function DashboardPage() {
                 d.creditLoans.overdueCount > 0
                   ? `${d.creditLoans.overdueCount} overdue`
                   : undefined
-              }
-            />
-            <Tile
-              className="col-span-2 lg:col-span-1"
-              label="Invested"
-              centavos={d.investments.totalNetContributedCentavos}
-              hint={
-                d.investments.totalGainCentavos === null
-                  ? undefined
-                  : `${d.investments.totalGainCentavos >= 0 ? '+' : '−'}${formatPeso0(Math.abs(d.investments.totalGainCentavos))} vs cost`
-              }
-              hintTone={
-                d.investments.totalGainCentavos === null
-                  ? undefined
-                  : d.investments.totalGainCentavos >= 0
-                    ? 'good'
-                    : 'bad'
               }
             />
           </dl>

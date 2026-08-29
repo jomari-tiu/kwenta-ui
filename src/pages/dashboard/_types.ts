@@ -33,6 +33,10 @@ export type TDashboardSummary = {
   netCentavos: number;
   savingsRatePercent: number | null;
   netBalanceAllTimeCentavos: number;
+  /** Spendable now: every live account except credit cards, whose balance is debt. */
+  disposableCentavos: number;
+  /** Sitting in investment pots — real money, but not spendable. */
+  investedCentavos: number;
   series: TSeriesPoint[];
   topCategories: TCategoryTotal[];
   accountBalances: {
