@@ -5,6 +5,7 @@ import {
   ListOrdered,
   Receipt,
   HandCoins,
+  DatabaseBackup,
   PiggyBank,
   Repeat,
   Tags,
@@ -101,6 +102,13 @@ export const NAV_ITEMS: TNavItem[] = [
     label: 'Accounts',
     to: '/accounts',
     icon: Wallet,
+    section: 'setup',
+  },
+  {
+    key: 'data',
+    label: 'Backup',
+    to: '/data',
+    icon: DatabaseBackup,
     section: 'setup',
   },
 ];

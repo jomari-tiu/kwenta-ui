@@ -33,6 +33,7 @@ const InstallmentDetailPage = lazy(
 const CreditLoansPage = lazy(
   () => import('@/pages/credit-loans/CreditLoansPage'),
 );
+const DataPage = lazy(() => import('@/pages/data/DataPage'));
 const InvestmentsPage = lazy(
   () => import('@/pages/investments/InvestmentsPage'),
 );
@@ -83,6 +84,7 @@ export const router = createBrowserRouter([
           },
           { path: '/credit-loans', element: page(<CreditLoansPage />) },
           { path: '/investments', element: page(<InvestmentsPage />) },
+          { path: '/data', element: page(<DataPage />) },
           { path: '/recurring-rules', element: page(<RecurringRulesPage />) },
           { path: '/budgets', element: page(<BudgetsPage />) },
           { path: '/categories', element: page(<CategoriesPage />) },
