@@ -24,6 +24,11 @@ export type TDashboardSummary = {
   from: string;
   to: string;
   incomeCentavos: number;
+  /** Money consumed. Excludes anything moved into a savings pot. */
+  spendingCentavos: number;
+  /** Net moved into savings pots this period. */
+  savedCentavos: number;
+  /** Spending + savings — everything that left the account. */
   expenseCentavos: number;
   netCentavos: number;
   savingsRatePercent: number | null;

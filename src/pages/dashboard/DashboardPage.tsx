@@ -128,12 +128,25 @@ export default function DashboardPage() {
             </p>
           </section>
 
-          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          {/* Spending and Saved are separate on purpose: money in a fund is
+              money you still have, and adding it to groceries would make the
+              expense figure mean nothing. income − spending − saved = net. */}
+          <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Tile label="Income" centavos={d.incomeCentavos} tone="income" />
             <Tile
-              label="Expenses"
-              centavos={d.expenseCentavos}
+              label="Spending"
+              centavos={d.spendingCentavos}
               tone="expense"
+            />
+            <Tile
+              label="Saved"
+              centavos={d.savedCentavos}
+              hintTone="good"
+              hint={
+                d.savedCentavos > 0 && d.incomeCentavos > 0
+                  ? `${Math.round((d.savedCentavos / d.incomeCentavos) * 100)}% of income`
+                  : undefined
+              }
             />
             <Tile
               label="Savings rate"
@@ -163,6 +176,7 @@ export default function DashboardPage() {
               }
             />
             <Tile
+              className="col-span-2 lg:col-span-1"
               label="Invested"
               centavos={d.investments.totalNetContributedCentavos}
               hint={
@@ -183,11 +197,11 @@ export default function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <ChartFrame
-                title="Income vs expense"
+                title="Income vs spending"
                 subtitle={`${d.from} to ${d.to}`}
                 legend={[
                   { label: 'Income', colorClass: 'bg-chart-income' },
-                  { label: 'Expense', colorClass: 'bg-chart-expense' },
+                  { label: 'Spending', colorClass: 'bg-chart-expense' },
                 ]}
                 table={
                   <div className="max-h-72 overflow-y-auto">
