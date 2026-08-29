@@ -17,7 +17,8 @@ export type TOverdraftRisk = {
 };
 
 export type TOverdraftInput = {
-  type: 'income' | 'expense';
+  /** A 'transfer' drains the SOURCE account, so it warns like an expense. */
+  type: 'income' | 'expense' | 'transfer';
   accountId: string;
   amountCentavos: TCentavos;
   accounts: TOverdraftAccount[];
@@ -28,7 +29,7 @@ export type TOverdraftInput = {
    */
   existing?: {
     accountId: string;
-    type: 'income' | 'expense';
+    type: 'income' | 'expense' | 'transfer';
     amountCentavos: TCentavos;
   } | null;
 };
@@ -50,8 +51,8 @@ export function overdraftRisk({
   accounts,
   existing,
 }: TOverdraftInput): TOverdraftRisk | null {
-  // Money coming IN can never overdraw.
-  if (type !== 'expense') return null;
+  // Money coming IN can never overdraw. Everything else leaves the account.
+  if (type === 'income') return null;
   if (amountCentavos <= 0) return null;
 
   const account = accounts.find((a) => a.id === accountId);
@@ -64,9 +65,9 @@ export function overdraftRisk({
   let base = account.currentBalanceCentavos;
   if (existing && existing.accountId === accountId) {
     base +=
-      existing.type === 'expense'
-        ? existing.amountCentavos
-        : -existing.amountCentavos;
+      existing.type === 'income'
+        ? -existing.amountCentavos
+        : existing.amountCentavos;
   }
 
   const projectedCentavos = base - amountCentavos;

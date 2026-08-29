@@ -248,7 +248,10 @@ function EntryRow({
         </span>
       </span>
 
-      <AmountText centavos={txn.amountCentavos} kind={txn.type} />
+      <AmountText
+        centavos={txn.amountCentavos}
+        kind={txn.type === 'transfer' ? 'plain' : txn.type}
+      />
 
       <span className="flex shrink-0 items-center">
         <Button

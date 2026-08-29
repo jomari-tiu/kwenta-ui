@@ -37,6 +37,7 @@ export function QuickEntryForm({ date }: { date: string }) {
     txnDate: date,
     categoryId: '',
     accountId: localStorage.getItem(LAST_ACCOUNT_KEY) ?? '',
+    transferAccountId: '',
     note: '',
   };
 

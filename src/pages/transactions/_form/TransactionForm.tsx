@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -94,7 +95,12 @@ function Fields({
 }) {
   const type = form.watch('type');
 
-  const { data: categoryData } = useCategories({ kind: type });
+  const isTransfer = type === 'transfer';
+  // A transfer has no category, so do not fetch one — 'transfer' is not a
+  // category kind and the request would 400.
+  const { data: categoryData } = useCategories({
+    kind: isTransfer ? 'expense' : type,
+  });
   const { data: accountData } = useAccounts();
 
   const categories = categoryData?.result ?? [];
@@ -104,14 +110,17 @@ function Fields({
     <>
       {/* Switching type clears the category — an expense category is invalid on
           an income row, and the API rejects it. */}
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-        {(['expense', 'income'] as const).map((t) => (
+      <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+        {(['expense', 'income', 'transfer'] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => {
               form.setValue('type', t);
+              // Clear the fields the other shapes do not own, so a leftover
+              // value cannot be submitted invisibly.
               form.setValue('categoryId', '');
+              form.setValue('transferAccountId', '');
             }}
             aria-pressed={type === t}
             className={cn(
@@ -119,7 +128,9 @@ function Fields({
               type === t
                 ? t === 'income'
                   ? 'bg-background text-ink-income shadow-sm'
-                  : 'bg-background text-ink-expense shadow-sm'
+                  : t === 'transfer'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'bg-background text-ink-expense shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -148,48 +159,51 @@ function Fields({
       />
 
       {/* A chip grid, not a select. On mobile the native picker is a modal
-          wheel that covers the form; this is one tap. */}
-      <FormField
-        control={form.control}
-        name="categoryId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Category</FormLabel>
-            <div className="flex flex-wrap gap-1.5">
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => field.onChange(c.id)}
-                  aria-pressed={field.value === c.id}
-                  className={cn(
-                    'flex min-h-10 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-sm transition-colors',
-                    field.value === c.id
-                      ? 'border-primary bg-accent font-semibold text-accent-foreground'
-                      : 'hover:bg-muted',
-                  )}
-                >
-                  <CategoryIcon name={c.icon} color={c.color} size="sm" />
-                  <span className="max-w-32 truncate">{c.name}</span>
-                </button>
-              ))}
-              {categories.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No categories yet — add one under Categories.
-                </p>
-              ) : null}
-            </div>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+          wheel that covers the form; this is one tap. Hidden for transfers —
+          moving your own money between pockets has no category. */}
+      {isTransfer ? null : (
+        <FormField
+          control={form.control}
+          name="categoryId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => field.onChange(c.id)}
+                    aria-pressed={field.value === c.id}
+                    className={cn(
+                      'flex min-h-10 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-sm transition-colors',
+                      field.value === c.id
+                        ? 'border-primary bg-accent font-semibold text-accent-foreground'
+                        : 'hover:bg-muted',
+                    )}
+                  >
+                    <CategoryIcon name={c.icon} color={c.color} size="sm" />
+                    <span className="max-w-32 truncate">{c.name}</span>
+                  </button>
+                ))}
+                {categories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No categories yet — add one under Categories.
+                  </p>
+                ) : null}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       <FormField
         control={form.control}
         name="accountId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Account</FormLabel>
+            <FormLabel>{isTransfer ? 'From' : 'Account'}</FormLabel>
             <Select value={field.value} onValueChange={field.onChange}>
               <FormControl>
                 <SelectTrigger className="w-full">
@@ -228,6 +242,51 @@ function Fields({
           </FormItem>
         )}
       />
+
+      {isTransfer ? (
+        <FormField
+          control={form.control}
+          name="transferAccountId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>To</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an account">
+                      {(v) =>
+                        accounts.find((a) => a.id === v)?.name ??
+                        'Select an account'
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {/* The source is filtered out: a transfer to the same account
+                      is a no-op the database rejects anyway. */}
+                  {accounts
+                    .filter((a) => a.id !== form.watch('accountId'))
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        <span className="flex w-full items-center justify-between gap-4">
+                          <span>{a.name}</span>
+                          <span className="tnum text-xs text-muted-foreground">
+                            {formatPeso(a.currentBalanceCentavos)}
+                          </span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Moving your own money. This is neither income nor spending, so
+                your totals will not change — only the two balances.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : null}
 
       <FormField
         control={form.control}

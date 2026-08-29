@@ -55,6 +55,7 @@ export function TransactionDialog({
           txnDate: existing.txnDate,
           categoryId: existing.category.id,
           accountId: existing.account.id,
+          transferAccountId: existing.transferAccount?.id ?? '',
           note: existing.note ?? '',
         }
       : {
@@ -65,6 +66,7 @@ export function TransactionDialog({
           // Default to the last account used — persisted locally, not server
           // state, because it's a UI preference not a fact about the ledger.
           accountId: localStorage.getItem(LAST_ACCOUNT_KEY) ?? '',
+          transferAccountId: '',
           note: '',
         };
 
@@ -107,14 +109,25 @@ export function TransactionDialog({
       }
     }
 
-    const payload = {
-      type: values.type,
-      amountCentavos,
-      txnDate: values.txnDate,
-      categoryId: values.categoryId,
-      accountId: values.accountId,
-      note: values.note?.trim() ? values.note.trim() : null,
-    };
+    // Send only the fields this type owns; the API rejects the wrong shape.
+    const payload =
+      values.type === 'transfer'
+        ? {
+            type: 'transfer' as const,
+            amountCentavos,
+            txnDate: values.txnDate,
+            accountId: values.accountId,
+            transferAccountId: values.transferAccountId,
+            note: values.note?.trim() ? values.note.trim() : null,
+          }
+        : {
+            type: values.type,
+            amountCentavos,
+            txnDate: values.txnDate,
+            categoryId: values.categoryId,
+            accountId: values.accountId,
+            note: values.note?.trim() ? values.note.trim() : null,
+          };
 
     if (mode === 'edit' && existing) {
       await update.mutateAsync(payload);

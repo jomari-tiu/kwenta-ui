@@ -570,7 +570,18 @@ function AccountHistoryPanel({
                   </span>
 
                   <span className="flex shrink-0 flex-col items-end">
-                    <AmountText centavos={r.amountCentavos} kind={r.type} />
+                    {/* A transfer in is money arriving, a transfer out is
+                        money leaving — sign it by direction, not by type. */}
+                    <AmountText
+                      centavos={r.amountCentavos}
+                      kind={
+                        r.type === 'transfer'
+                          ? r.isIncoming
+                            ? 'income'
+                            : 'expense'
+                          : r.type
+                      }
+                    />
                     {/* The point of the panel: what the account held at
                         this moment, not just what moved. */}
                     <span className="tnum text-2xs text-muted-foreground/70">

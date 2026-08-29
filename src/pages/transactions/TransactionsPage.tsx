@@ -539,16 +539,31 @@ function TransactionTable({
               </td>
               <td className="max-w-48 px-3 py-2.5 text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  <span className="truncate">{t.note ?? '—'}</span>
+                  {/* A transfer names its destination, so the row explains
+                      itself without opening it. */}
+                  <span className="truncate">
+                    {t.transferAccount
+                      ? `→ ${t.transferAccount.name}`
+                      : (t.note ?? '—')}
+                    {t.transferAccount && t.note ? ` · ${t.note}` : ''}
+                  </span>
                   {t.creditLoanId !== null ? (
                     <Badge variant="secondary" className="shrink-0">
                       Loan
                     </Badge>
                   ) : null}
+                  {t.type === 'transfer' ? (
+                    <Badge variant="secondary" className="shrink-0">
+                      Transfer
+                    </Badge>
+                  ) : null}
                 </span>
               </td>
               <td className="px-3 py-2.5 text-right">
-                <AmountText centavos={t.amountCentavos} kind={t.type} />
+                <AmountText
+                  centavos={t.amountCentavos}
+                  kind={t.type === 'transfer' ? 'plain' : t.type}
+                />
               </td>
               <td className="px-1 py-2.5 text-right">
                 <RowActions txn={t} onEdit={() => onEdit(t)} />
@@ -585,7 +600,10 @@ function TransactionCard({
         ) : null}
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
-        <AmountText centavos={txn.amountCentavos} kind={txn.type} />
+        <AmountText
+          centavos={txn.amountCentavos}
+          kind={txn.type === 'transfer' ? 'plain' : txn.type}
+        />
         <RowActions txn={txn} onEdit={onEdit} />
       </span>
     </li>

@@ -90,7 +90,9 @@ export function useRestoreAccount(id: string) {
 
 export type TAccountHistoryRow = {
   id: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'transfer';
+  /** For a transfer: true when money came INTO this account. */
+  isIncoming: boolean;
   amountCentavos: number;
   txnDate: string;
   note: string | null;

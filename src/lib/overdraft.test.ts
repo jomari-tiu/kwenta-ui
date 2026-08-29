@@ -99,3 +99,27 @@ describe('overdraftRisk', () => {
     ).toBeNull();
   });
 });
+
+describe('overdraftRisk — transfers', () => {
+  // A transfer drains the source account exactly like an expense.
+  it('warns when a transfer out would overdraw the source', () => {
+    const risk = overdraftRisk({
+      accounts: ACCOUNTS,
+      type: 'transfer',
+      accountId: 'cash',
+      amountCentavos: 150000,
+    });
+    expect(risk?.projectedCentavos).toBe(-50000);
+  });
+
+  it('is silent when the source can cover the transfer', () => {
+    expect(
+      overdraftRisk({
+        accounts: ACCOUNTS,
+        type: 'transfer',
+        accountId: 'cash',
+        amountCentavos: 100000,
+      }),
+    ).toBeNull();
+  });
+});
