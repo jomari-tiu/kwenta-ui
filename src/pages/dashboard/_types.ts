@@ -84,6 +84,21 @@ export type TDashboardSummary = {
     totalGainCentavos: number | null;
     nextTargetDate: string | null;
   };
+  businesses: {
+    activeCount: number;
+    /** Zero means no business holds money separately — nothing is "held". */
+    withOwnAccountCount: number;
+    /** Revenue minus costs across active businesses. Cash-basis. */
+    netCashCentavos: number;
+    /** Cash sitting in the business accounts right now. */
+    heldCentavos: number;
+    /** What the books say the businesses hold, wherever it sits. */
+    ownedCentavos: number;
+    /** True when a business's books disagree with its account balance. */
+    hasReconciliationGap: boolean;
+  };
+  /** Business revenue minus costs for the browsed period only. */
+  businessNetCentavos: number;
   creditLoans: {
     openCount: number;
     overdueCount: number;

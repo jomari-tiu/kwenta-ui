@@ -172,9 +172,13 @@ function DayEntries({
   );
   const entries = day.entries.filter((e) => !linkedIds.has(e.id));
 
-  const income = entries.filter((e) => e.type === 'income');
-  const expense = entries.filter((e) => e.type === 'expense');
-  const transfers = entries.filter((e) => e.type === 'transfer');
+  const isBusiness = (e: TTransaction) => e.businessId !== null;
+  const business = entries.filter(isBusiness);
+  const personal = entries.filter((e) => !isBusiness(e));
+
+  const income = personal.filter((e) => e.type === 'income');
+  const expense = personal.filter((e) => e.type === 'expense');
+  const transfers = personal.filter((e) => e.type === 'transfer');
 
   if (
     entries.length === 0 &&
@@ -222,6 +226,17 @@ function DayEntries({
           <SectionLabel>Transfers</SectionLabel>
           <ul className="flex flex-col gap-1.5">
             {transfers.map((e) => (
+              <EntryRow key={e.id} txn={e} onEdit={onEditTransaction} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {business.length > 0 ? (
+        <section className="mt-5">
+          <SectionLabel>Business</SectionLabel>
+          <ul className="flex flex-col gap-1.5">
+            {business.map((e) => (
               <EntryRow key={e.id} txn={e} onEdit={onEditTransaction} />
             ))}
           </ul>

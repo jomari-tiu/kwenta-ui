@@ -21,6 +21,7 @@ function filterParams(
   filters: TTransactionFilters,
 ): Record<string, string | number | undefined> {
   return {
+    ...(filters.bucket ? { bucket: filters.bucket } : {}),
     ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
     ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
     ...(filters.type ? { type: filters.type } : {}),
@@ -53,6 +54,7 @@ export function useTransactions(
     key: [
       TRANSACTIONS_KEY,
       'list',
+      toKeyPart(filters.bucket),
       toKeyPart(filters.dateFrom),
       toKeyPart(filters.dateTo),
       toKeyPart(filters.type),

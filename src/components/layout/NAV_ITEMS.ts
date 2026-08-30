@@ -8,6 +8,7 @@ import {
   DatabaseBackup,
   PiggyBank,
   Repeat,
+  Store,
   Tags,
   Target,
   Wallet,
@@ -74,6 +75,13 @@ export const NAV_ITEMS: TNavItem[] = [
     label: 'Investments',
     to: '/investments',
     icon: PiggyBank,
+    section: 'main',
+  },
+  {
+    key: 'businesses',
+    label: 'Businesses',
+    to: '/businesses',
+    icon: Store,
     section: 'main',
   },
   {

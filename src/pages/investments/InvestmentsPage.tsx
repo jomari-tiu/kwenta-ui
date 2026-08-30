@@ -458,7 +458,10 @@ function FundForm({
 }) {
   const create = useCreateInvestment();
   const update = useUpdateInvestment(existing?.id ?? '');
-  const { data: categoryData } = useCategories({ kind: 'expense' });
+  const { data: categoryData } = useCategories({
+    kind: 'expense',
+    scope: 'personal',
+  });
   const { data: accountData } = useAccounts();
 
   const form = useForm<TInvestmentFormValues>({
@@ -844,7 +847,10 @@ function WithdrawForm({
   const withdraw = useWithdraw(fund.id);
   // Income categories only: money leaving a fund arrives somewhere, and an
   // income transaction must reference an income category.
-  const { data: categoryData } = useCategories({ kind: 'income' });
+  const { data: categoryData } = useCategories({
+    kind: 'income',
+    scope: 'personal',
+  });
 
   const form = useForm<TWithdrawFormValues>({
     resolver: zodResolver(withdrawSchema),

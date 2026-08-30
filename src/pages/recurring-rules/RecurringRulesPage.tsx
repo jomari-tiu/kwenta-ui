@@ -357,7 +357,10 @@ function RuleFields({
   const type = form.watch('type');
   const frequency = form.watch('frequency');
 
-  const { data: categoryData } = useCategories({ kind: type });
+  const { data: categoryData } = useCategories({
+    kind: type,
+    scope: 'personal',
+  });
   const { data: accountData } = useAccounts();
 
   const needsWeekday = frequency === 'weekly' || frequency === 'biweekly';

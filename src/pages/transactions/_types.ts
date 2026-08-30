@@ -29,6 +29,9 @@ export type TTransaction = {
   creditLoanId: string | null;
   /** Set when this row moves money into or out of a fund — READ-ONLY here. */
   investmentId: string | null;
+  /** Set when the row belongs to a business's books. Read-only on this screen. */
+  businessId: string | null;
+  businessName: string | null;
   recurringRuleId: string | null;
   isEdited: boolean;
   /** For a transfer this is a display-only stand-in; the row has no category. */
@@ -42,6 +45,8 @@ export type TTransaction = {
 export type TTransactionSummary = {
   incomeCentavos: number;
   expenseCentavos: number;
+  /** Total moved by transfers. Not part of net — a transfer changes no total. */
+  transferCentavos: number;
   netCentavos: number;
   count: number;
 };
@@ -91,7 +96,12 @@ export type TTransactionPayload = {
   note?: string | null;
 };
 
+/** The five buckets partition the ledger: every row is in exactly one. */
+export type TTransactionBucket =
+  'spending' | 'income' | 'invested' | 'business' | 'transfer';
+
 export type TTransactionFilters = {
+  bucket?: TTransactionBucket;
   dateFrom?: string;
   dateTo?: string;
   type?: TLedgerType;

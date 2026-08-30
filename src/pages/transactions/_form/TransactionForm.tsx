@@ -98,8 +98,12 @@ function Fields({
   const isTransfer = type === 'transfer';
   // A transfer has no category, so do not fetch one — 'transfer' is not a
   // category kind and the request would 400.
+  // Personal only: business entries are created in the Businesses module,
+  // against that business's own account, so offering business categories here
+  // would produce an untagged row that never reaches its books.
   const { data: categoryData } = useCategories({
     kind: isTransfer ? 'expense' : type,
+    scope: 'personal',
   });
   const { data: accountData } = useAccounts();
 
@@ -168,7 +172,12 @@ function Fields({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <div className="flex flex-wrap gap-1.5">
+              {/* Capped and scrolled on its own: with 23 categories the chip
+                  grid is by far the tallest thing in the form, and letting it
+                  run pushes Account, Date and Save off the screen. The cap is
+                  roughly five rows — enough that scrolling is obviously
+                  possible rather than looking like the list simply ends. */}
+              <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto overscroll-contain pr-1">
                 {categories.map((c) => (
                   <button
                     key={c.id}

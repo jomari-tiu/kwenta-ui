@@ -99,7 +99,10 @@ function Fields({
   form: UseFormReturn<TPlanFormValues>;
   scheduleLocked?: boolean;
 }) {
-  const { data: categoryData } = useCategories({ kind: 'expense' });
+  const { data: categoryData } = useCategories({
+    kind: 'expense',
+    scope: 'personal',
+  });
   const { data: accountData } = useAccounts();
 
   const total = parsePesoInput(form.watch('total') ?? '');

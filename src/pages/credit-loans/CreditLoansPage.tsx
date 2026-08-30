@@ -378,7 +378,10 @@ function LoanForm({
 }) {
   const create = useCreateCreditLoan();
   const update = useUpdateCreditLoan(existing?.id ?? '');
-  const { data: categoryData } = useCategories({ kind: 'expense' });
+  const { data: categoryData } = useCategories({
+    kind: 'expense',
+    scope: 'personal',
+  });
   const { data: accountData } = useAccounts();
 
   const form = useForm<TCreditLoanFormValues>({

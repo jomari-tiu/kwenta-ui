@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  ChevronDown,
   Download,
   ExternalLink,
   Pencil,
@@ -8,12 +9,8 @@ import {
   X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import {
-  AmountText,
-  ConfirmDialog,
-  EmptyState,
-  ErrorState,
-} from '@/components/finance';
+import { AmountText, ConfirmDialog, ErrorState } from '@/components/finance';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -51,6 +48,7 @@ import {
 import type {
   TLedgerType,
   TTransaction,
+  TTransactionBucket,
   TTransactionFilters,
   TTransactionSummary,
 } from './_types';
@@ -60,7 +58,6 @@ const ALL_VALUE = '__all__';
 
 export default function TransactionsPage() {
   const isMobile = useIsMobile();
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editing, setEditing] = useState<TTransaction | null>(null);
@@ -105,15 +102,13 @@ export default function TransactionsPage() {
     ],
   );
 
-  const { data, isPending, isError, refetch, isFetching } = useTransactions(
-    filters,
-    page,
-  );
+  // Only the summary tiles and the error state come from here now — each
+  // section fetches its own rows. pageSize 1 because the `summary` block spans
+  // every matching row, not the page.
+  const { data, isError, refetch } = useTransactions(filters, 1, 1);
   const { data: categoryData } = useCategories({ includeArchived: true });
   const { data: accountData } = useAccounts({ includeArchived: true });
 
-  const rows = data?.result ?? [];
-  const meta = data?.meta;
   const summary = (
     data?.payload as { summary?: TTransactionSummary } | undefined
   )?.summary;
@@ -136,7 +131,6 @@ export default function TransactionsPage() {
     setAccountId('');
     setAmountMin('');
     setAmountMax('');
-    setPage(1);
   }
 
   async function handleExport() {
@@ -161,7 +155,6 @@ export default function TransactionsPage() {
           value={dateFrom}
           onChange={(e) => {
             setDateFrom(e.target.value);
-            setPage(1);
           }}
         />
       </div>
@@ -173,7 +166,6 @@ export default function TransactionsPage() {
           value={dateTo}
           onChange={(e) => {
             setDateTo(e.target.value);
-            setPage(1);
           }}
         />
       </div>
@@ -185,7 +177,6 @@ export default function TransactionsPage() {
           onValueChange={(v) => {
             setType(v === ALL_VALUE || v === null ? '' : (v as TLedgerType));
             setCategoryId('');
-            setPage(1);
           }}
         >
           <SelectTrigger className="w-full">
@@ -213,7 +204,6 @@ export default function TransactionsPage() {
           value={categoryId || ALL_VALUE}
           onValueChange={(v) => {
             setCategoryId(v === ALL_VALUE || v === null ? '' : v);
-            setPage(1);
           }}
         >
           <SelectTrigger className="w-full">
@@ -245,7 +235,6 @@ export default function TransactionsPage() {
           value={accountId || ALL_VALUE}
           onValueChange={(v) => {
             setAccountId(v === ALL_VALUE || v === null ? '' : v);
-            setPage(1);
           }}
         >
           <SelectTrigger className="w-full">
@@ -278,7 +267,6 @@ export default function TransactionsPage() {
             value={amountMin}
             onChange={(e) => {
               setAmountMin(e.target.value);
-              setPage(1);
             }}
             placeholder="0"
           />
@@ -291,7 +279,6 @@ export default function TransactionsPage() {
             value={amountMax}
             onChange={(e) => {
               setAmountMax(e.target.value);
-              setPage(1);
             }}
             placeholder="Any"
           />
@@ -307,7 +294,6 @@ export default function TransactionsPage() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setPage(1);
           }}
           placeholder="Search notes…"
           className="min-w-0 flex-1 sm:max-w-xs"
@@ -372,66 +358,26 @@ export default function TransactionsPage() {
           title="Could not load transactions"
           retry={() => void refetch()}
         />
-      ) : isPending && rows.length === 0 ? (
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+      ) : (
+        /*
+         * One table per bucket rather than a single mixed list. The five
+         * buckets partition the ledger — every row appears in exactly one — so
+         * the section totals add up to the tiles above with nothing
+         * double-counted. Spending leads because it is what gets reviewed.
+         */
+        <div className="flex flex-col gap-6">
+          {BUCKET_SECTIONS.map((section) => (
+            <BucketSection
+              key={section.bucket}
+              section={section}
+              filters={filters}
+              isMobile={isMobile}
+              onEdit={setEditing}
+              hasFilters={activeFilterCount > 0 || debouncedSearch.length > 0}
+            />
           ))}
         </div>
-      ) : rows.length === 0 ? (
-        <EmptyState
-          title="No transactions match"
-          description={
-            activeFilterCount > 0
-              ? 'Try clearing some filters.'
-              : 'Add your first entry from the calendar.'
-          }
-        />
-      ) : (
-        <div className={isFetching ? 'opacity-60 transition-opacity' : ''}>
-          {/* A 6-column table on a 390px screen is unusable, and a horizontally
-              scrolling table is worse. Same data, different presentation. */}
-          {isMobile ? (
-            <ul className="flex flex-col gap-2">
-              {rows.map((t) => (
-                <TransactionCard
-                  key={t.id}
-                  txn={t}
-                  onEdit={() => setEditing(t)}
-                />
-              ))}
-            </ul>
-          ) : (
-            <TransactionTable rows={rows} onEdit={setEditing} />
-          )}
-        </div>
       )}
-
-      {meta && meta.total > PAGE_SIZE ? (
-        <nav className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            Page {meta.page} · {meta.total} total
-          </p>
-          <span className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!meta.hasPrevious}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!meta.hasNext}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </span>
-        </nav>
-      ) : null}
 
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
         <SheetContent
@@ -466,6 +412,189 @@ export default function TransactionsPage() {
         />
       ) : null}
     </div>
+  );
+}
+
+type TBucketSection = {
+  bucket: TTransactionBucket;
+  title: string;
+  /** Says what the bucket EXCLUDES, which is the part that surprises people. */
+  hint: string;
+  /** Spending is the main table: everything else starts collapsed. */
+  isMain?: boolean;
+};
+
+const BUCKET_SECTIONS: TBucketSection[] = [
+  {
+    bucket: 'spending',
+    title: 'Expenses',
+    hint: 'total spent — excludes fund contributions and business costs',
+    isMain: true,
+  },
+  {
+    bucket: 'income',
+    title: 'Income',
+    hint: 'total earned — excludes fund withdrawals and business revenue',
+  },
+  {
+    bucket: 'invested',
+    title: 'Saved & invested',
+    hint: 'net put into funds — still your money',
+  },
+  {
+    bucket: 'business',
+    title: 'Business',
+    hint: 'net cash made — capital and drawings are listed inside',
+  },
+  {
+    bucket: 'transfer',
+    title: 'Transfers',
+    hint: 'total moved between your own accounts — changes no total',
+  },
+];
+
+function BucketSection({
+  section,
+  filters,
+  isMobile,
+  onEdit,
+  hasFilters,
+}: {
+  section: TBucketSection;
+  filters: TTransactionFilters;
+  isMobile: boolean;
+  onEdit: (txn: TTransaction) => void;
+  hasFilters: boolean;
+}) {
+  const [page, setPage] = useState(1);
+  const [isOpen, setIsOpen] = useState(section.isMain ?? false);
+
+  // Adjusting state during render, the documented alternative to an effect:
+  // without it a section left on page 3 shows an empty table once a filter
+  // narrows the result to a single page.
+  const [seenFilters, setSeenFilters] = useState(filters);
+  if (seenFilters !== filters) {
+    setSeenFilters(filters);
+    setPage(1);
+  }
+
+  const bucketFilters = useMemo(
+    () => ({ ...filters, bucket: section.bucket }),
+    [filters, section.bucket],
+  );
+
+  const { data, isPending, isFetching } = useTransactions(bucketFilters, page);
+  const rows = data?.result ?? [];
+  const meta = data?.meta;
+  const total = meta?.total ?? 0;
+
+  const summary = (
+    data?.payload as { summary?: TTransactionSummary } | undefined
+  )?.summary;
+  // What each bucket's one headline number actually means differs, so pick it
+  // deliberately rather than summing everything. A bucket made only of
+  // transfers has no income or expense at all, and showing ₱0.00 beside a row
+  // count reads as a bug.
+  const headlineCentavos = !summary
+    ? 0
+    : section.bucket === 'income'
+      ? summary.incomeCentavos
+      : section.bucket === 'spending'
+        ? summary.expenseCentavos
+        : section.bucket === 'invested'
+          ? // Net INTO funds: contributions are expenses, withdrawals income.
+            summary.expenseCentavos - summary.incomeCentavos
+          : section.bucket === 'business'
+            ? // Net cash the business made. Capital and drawings are transfers
+              // and belong to neither side of this.
+              summary.incomeCentavos - summary.expenseCentavos
+            : summary.transferCentavos;
+
+  // An empty bucket the user did not filter into is noise, not information —
+  // but while filtering, "0 matches here" is the answer to their question.
+  if (!isPending && total === 0 && !hasFilters && !section.isMain) return null;
+
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 border-b pb-2 text-left"
+      >
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="font-semibold">{section.title}</span>
+          <span className="truncate text-2xs text-text-muted">
+            {section.hint}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-3">
+          <span className="text-sm tabular-nums text-text-muted">
+            {total} · {formatPeso(headlineCentavos)}
+          </span>
+          <ChevronDown
+            className={cn(
+              'size-4 transition-transform',
+              isOpen ? 'rotate-180' : '',
+            )}
+            aria-hidden
+          />
+        </span>
+      </button>
+
+      {!isOpen ? null : isPending && rows.length === 0 ? (
+        <div className="mt-3 flex flex-col gap-2">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="mt-3 text-sm text-text-muted">
+          {hasFilters ? 'Nothing matches here.' : 'Nothing recorded yet.'}
+        </p>
+      ) : (
+        <div
+          className={cn('mt-3', isFetching && 'opacity-60 transition-opacity')}
+        >
+          {/* A 6-column table on a 390px screen is unusable, and a horizontally
+              scrolling table is worse. Same data, different presentation. */}
+          {isMobile ? (
+            <ul className="flex flex-col gap-2">
+              {rows.map((t) => (
+                <TransactionCard key={t.id} txn={t} onEdit={() => onEdit(t)} />
+              ))}
+            </ul>
+          ) : (
+            <TransactionTable rows={rows} onEdit={onEdit} />
+          )}
+
+          {meta && total > PAGE_SIZE ? (
+            <nav className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Page {meta.page} · {total} total
+              </p>
+              <span className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!meta.hasPrevious}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!meta.hasNext}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </span>
+            </nav>
+          ) : null}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -555,6 +684,11 @@ function TransactionTable({
                   {t.investmentId !== null ? (
                     <Badge variant="secondary" className="shrink-0">
                       Fund
+                    </Badge>
+                  ) : null}
+                  {t.businessId !== null ? (
+                    <Badge variant="secondary" className="shrink-0">
+                      {t.businessName ?? 'Business'}
                     </Badge>
                   ) : null}
                   {/* Recurring rows stay EDITABLE, unlike loan and fund rows —
@@ -649,7 +783,9 @@ function RowActions({
       ? { to: '/credit-loans', label: 'Credit Loans' }
       : txn.investmentId !== null
         ? { to: '/investments', label: 'Investments' }
-        : null;
+        : txn.businessId !== null
+          ? { to: '/businesses', label: 'Businesses' }
+          : null;
 
   if (owner) {
     return (

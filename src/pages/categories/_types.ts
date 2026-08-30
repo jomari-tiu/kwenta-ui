@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export type TCategoryKind = 'income' | 'expense';
+/** Which set of books a category belongs to. Immutable after creation. */
+export type TCategoryScope = 'personal' | 'business';
 
 export const categorySchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(60),
@@ -19,6 +21,7 @@ export type TCategory = {
   id: string;
   name: string;
   kind: TCategoryKind;
+  scope: TCategoryScope;
   icon: string | null;
   color: string | null;
   monthlyBudgetCentavos: number | null;

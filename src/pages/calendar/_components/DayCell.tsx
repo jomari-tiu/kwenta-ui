@@ -4,6 +4,7 @@ import {
   CircleCheck,
   PiggyBank,
   Repeat,
+  Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatPeso0 } from '@/lib/money';
@@ -125,6 +126,9 @@ export function DayCell({ day, isSelected, compact, onSelect }: DayCellProps) {
               className="size-1.5 rounded-full bg-chart-neutral"
             />
           ) : null}
+          {day.businessCentavos !== 0 ? (
+            <span aria-hidden className="size-1.5 rounded-full bg-accent-fg" />
+          ) : null}
           {day.projections.length > 0 ? (
             <span
               aria-hidden
@@ -158,6 +162,14 @@ export function DayCell({ day, isSelected, compact, onSelect }: DayCellProps) {
             <span className="tnum text-2xs flex items-center gap-0.5 font-semibold text-text-muted">
               <ArrowLeftRight className="size-2.5" aria-hidden />
               {formatPeso0(day.transferCentavos)}
+            </span>
+          ) : null}
+          {/* A business's own takings, kept off the income and expense lines
+              so those keep meaning what you personally earned and spent. */}
+          {day.businessCentavos !== 0 ? (
+            <span className="tnum text-2xs flex items-center gap-0.5 font-semibold text-accent-fg">
+              <Store className="size-2.5" aria-hidden />
+              {formatPeso0(Math.abs(day.businessCentavos))}
             </span>
           ) : null}
           {/* Faint and italic: scheduled, not recorded. */}

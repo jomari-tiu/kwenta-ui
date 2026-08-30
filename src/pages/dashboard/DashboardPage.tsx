@@ -39,6 +39,9 @@ export default function DashboardPage() {
   });
 
   const d = data?.result;
+  // Whether any business keeps its money in an account of its own. Without
+  // that, "cash held" is not a thing the app can report.
+  const hasOwnAccounts = (d?.businesses.withOwnAccountCount ?? 0) > 0;
 
   // Stable identity for the chart's data prop. Remapping inline would hand
   // recharts a new array on every render.
@@ -196,6 +199,51 @@ export default function DashboardPage() {
                 ) : null}
               </dd>
             </div>
+            {/* Only once a business exists — an empty tile teaches nothing. */}
+            {d.businesses.activeCount > 0 ? (
+              <div className="rounded-lg border bg-card p-4 shadow-sm">
+                <dt className="text-2xs font-bold tracking-wide text-text-muted uppercase">
+                  {hasOwnAccounts ? 'Business cash' : 'Business net cash'}
+                </dt>
+                <dd className="mt-1">
+                  {/* Nothing is "held" when no business keeps money separately,
+                      and a ₱0.00 headline beside a business that is doing fine
+                      reads as a bug. */}
+                  <AmountText
+                    centavos={
+                      hasOwnAccounts
+                        ? d.businesses.heldCentavos
+                        : d.businesses.netCashCentavos
+                    }
+                    size="lg"
+                  />
+                  <span className="mt-0.5 block text-2xs text-text-muted">
+                    {hasOwnAccounts
+                      ? `held by ${d.businesses.withOwnAccountCount} of ${d.businesses.activeCount} · not counted above`
+                      : `revenue − costs · kept out of Income and Spending`}
+                  </span>
+                  {hasOwnAccounts ? (
+                    <span
+                      className={cn(
+                        'mt-0.5 block text-2xs font-semibold',
+                        d.businesses.netCashCentavos >= 0
+                          ? 'text-ink-income'
+                          : 'text-ink-expense',
+                      )}
+                    >
+                      {d.businesses.netCashCentavos >= 0 ? '+' : '−'}
+                      {formatPeso0(Math.abs(d.businesses.netCashCentavos))} net
+                      cash
+                    </span>
+                  ) : null}
+                  {d.businesses.hasReconciliationGap ? (
+                    <span className="mt-0.5 block text-2xs font-semibold text-ink-warn">
+                      A business account has entries its books cannot explain
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
           </dl>
 
           <dl className="grid grid-cols-2 gap-3 lg:grid-cols-3">
