@@ -104,3 +104,15 @@ export function useWithdraw(id: string) {
     invalidateKeys: [...LEDGER_KEYS, [INVESTMENTS_KEY]],
   });
 }
+
+/**
+ * Undo a contribution or withdrawal, from the module that owns it. The fund's
+ * balance is derived from these rows, so removing one simply moves it back.
+ */
+export function useDeleteFlow(investmentId: string) {
+  return useMutate<{ transactionId: string }, unknown>({
+    url: (v) => `/api/v1/investments/${investmentId}/flows/${v.transactionId}`,
+    method: 'delete',
+    invalidateKeys: [...LEDGER_KEYS, [INVESTMENTS_KEY]],
+  });
+}

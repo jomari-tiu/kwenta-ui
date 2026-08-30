@@ -552,6 +552,11 @@ function TransactionTable({
                       Loan
                     </Badge>
                   ) : null}
+                  {t.investmentId !== null ? (
+                    <Badge variant="secondary" className="shrink-0">
+                      Fund
+                    </Badge>
+                  ) : null}
                   {t.type === 'transfer' ? (
                     <Badge variant="secondary" className="shrink-0">
                       Transfer
@@ -627,17 +632,24 @@ function RowActions({
     setConfirming(false);
   }
 
-  // A repayment belongs to its loan. Editing it here would move the loan's
-  // outstanding balance from a screen that shows no loan, so this row is
-  // display-only and both actions collapse into "go where it lives".
-  if (txn.creditLoanId !== null) {
+  // A row owned by another module is display-only here. Editing a loan
+  // repayment or a fund contribution from this screen would move a balance the
+  // screen does not show, so both actions collapse into "go where it lives".
+  const owner =
+    txn.creditLoanId !== null
+      ? { to: '/credit-loans', label: 'Credit Loans' }
+      : txn.investmentId !== null
+        ? { to: '/investments', label: 'Investments' }
+        : null;
+
+  if (owner) {
     return (
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => void navigate('/credit-loans')}
-        aria-label="Open in Credit Loans"
-        title="Managed in Credit Loans"
+        onClick={() => void navigate(owner.to)}
+        aria-label={`Open in ${owner.label}`}
+        title={`Managed in ${owner.label}`}
       >
         <ExternalLink className="size-3.5" />
       </Button>

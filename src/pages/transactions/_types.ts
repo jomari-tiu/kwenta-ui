@@ -27,6 +27,8 @@ export type TTransaction = {
   installmentPaymentId: string | null;
   /** Set when this expense is a credit-loan repayment — READ-ONLY here. */
   creditLoanId: string | null;
+  /** Set when this row moves money into or out of a fund — READ-ONLY here. */
+  investmentId: string | null;
   recurringRuleId: string | null;
   isEdited: boolean;
   /** For a transfer this is a display-only stand-in; the row has no category. */

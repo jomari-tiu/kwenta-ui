@@ -5,6 +5,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CircleCheck,
+  History,
   Pencil,
   PiggyBank,
   Plus,
@@ -39,6 +40,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/useMobile';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AmountText,
@@ -55,6 +64,8 @@ import { useCategories } from '@/pages/categories/_hooks/api';
 import {
   useContribute,
   useCreateInvestment,
+  useDeleteFlow,
+  useInvestment,
   useDeleteInvestment,
   useInvestmentSummary,
   useInvestments,
@@ -79,6 +90,7 @@ export default function InvestmentsPage() {
   const [editing, setEditing] = useState<TInvestment | null>(null);
   const [adding, setAdding] = useState<TInvestment | null>(null);
   const [taking, setTaking] = useState<TInvestment | null>(null);
+  const [viewing, setViewing] = useState<TInvestment | null>(null);
 
   const { data, isPending, isError, refetch } = useInvestments(status);
   const { data: summaryData } = useInvestmentSummary();
@@ -169,10 +181,13 @@ export default function InvestmentsPage() {
               onEdit={() => setEditing(fund)}
               onAdd={() => setAdding(fund)}
               onTake={() => setTaking(fund)}
+              onHistory={() => setViewing(fund)}
             />
           ))}
         </ul>
       )}
+
+      <FlowHistoryPanel fund={viewing} onClose={() => setViewing(null)} />
 
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-md">
@@ -258,11 +273,13 @@ function FundCard({
   onEdit,
   onAdd,
   onTake,
+  onHistory,
 }: {
   fund: TInvestment;
   onEdit: () => void;
   onAdd: () => void;
   onTake: () => void;
+  onHistory: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const del = useDeleteInvestment(fund.id);
@@ -370,6 +387,14 @@ function FundCard({
         >
           <ArrowDownLeft className="size-3.5" />
           Withdraw
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onHistory}
+          aria-label="Entry history"
+        >
+          <History className="size-3.5" />
         </Button>
         <Button variant="ghost" size="sm" onClick={onEdit} aria-label="Edit">
           <Pencil className="size-3.5" />
@@ -925,5 +950,139 @@ function WithdrawForm({
         </div>
       </form>
     </Form>
+  );
+}
+
+/**
+ * Every contribution and withdrawal for one fund, and the only place one can be
+ * removed. The transactions module shows the same rows read-only — one record,
+ * one owner.
+ */
+function FlowHistoryPanel({
+  fund,
+  onClose,
+}: {
+  fund: TInvestment | null;
+  onClose: () => void;
+}) {
+  const isMobile = useIsMobile();
+  const { data, isPending, isError, refetch } = useInvestment(fund?.id ?? '');
+  const flows = data?.result?.flows ?? [];
+
+  return (
+    <Sheet open={fund !== null} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className={
+          isMobile ? 'max-h-[88dvh] rounded-t-2xl' : 'w-full sm:max-w-md'
+        }
+      >
+        <SheetHeader>
+          <SheetTitle>{fund?.name ?? 'Entries'}</SheetTitle>
+          <SheetDescription>
+            {fund
+              ? `${formatPeso(fund.netContributedCentavos)} in · ${formatPeso(
+                  fund.contributedCentavos,
+                )} added, ${formatPeso(fund.withdrawnCentavos)} taken out`
+              : null}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
+          {isError ? (
+            <ErrorState
+              title="Could not load entries"
+              retry={() => void refetch()}
+            />
+          ) : isPending && flows.length === 0 ? (
+            <div className="flex flex-col gap-2 pt-2">
+              {Array.from({ length: 3 }, (_, i) => (
+                <Skeleton key={i} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : flows.length === 0 ? (
+            <EmptyState
+              title="Nothing recorded yet"
+              description="Use Add money to put something in."
+              icon={<History className="size-5" />}
+            />
+          ) : (
+            <ul className="flex flex-col">
+              {flows.map((flow) => (
+                <FlowRow key={flow.id} fundId={fund?.id ?? ''} flow={flow} />
+              ))}
+            </ul>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function FlowRow({
+  fundId,
+  flow,
+}: {
+  fundId: string;
+  flow: {
+    id: string;
+    type: 'income' | 'expense';
+    amountCentavos: number;
+    txnDate: string;
+    note: string | null;
+  };
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const del = useDeleteFlow(fundId);
+  // An expense put money IN; an income took it back out.
+  const isContribution = flow.type === 'expense';
+
+  async function handleDelete() {
+    await del.mutateAsync({ transactionId: flow.id });
+    toast.success(
+      isContribution
+        ? 'Contribution removed — the fund balance went down'
+        : 'Withdrawal removed — the fund balance went back up',
+    );
+    setConfirming(false);
+  }
+
+  return (
+    <li className="flex items-center gap-3 border-b py-2.5 last:border-b-0">
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-sm font-medium">
+          {formatDisplayDate(flow.txnDate)}
+        </span>
+        <span className="truncate text-xs text-muted-foreground">
+          {isContribution ? 'Added' : 'Withdrawn'}
+          {flow.note ? ` · ${flow.note}` : ''}
+        </span>
+      </span>
+
+      <AmountText
+        centavos={flow.amountCentavos}
+        kind={isContribution ? 'expense' : 'income'}
+      />
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setConfirming(true)}
+        aria-label="Remove entry"
+      >
+        <Trash2 className="size-3.5 text-destructive" />
+      </Button>
+
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => void handleDelete()}
+        title="Remove this entry?"
+        description="It is deleted from your ledger and the fund's balance moves to match."
+        confirmLabel="Remove"
+        tone="danger"
+        loading={del.isPending}
+      />
+    </li>
   );
 }
