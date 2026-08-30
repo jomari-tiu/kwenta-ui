@@ -62,7 +62,9 @@ export function DayPanel({
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
         className={
-          isMobile ? 'max-h-[88dvh] rounded-t-2xl' : 'w-full sm:max-w-md'
+          isMobile
+            ? 'max-h-[88dvh] rounded-t-2xl'
+            : 'w-full data-[side=right]:sm:w-1/2 data-[side=right]:sm:max-w-none'
         }
       >
         <SheetHeader>
