@@ -515,7 +515,7 @@ function TransactionTable({
             <th className="px-3 py-2.5">Account</th>
             <th className="px-3 py-2.5">Note</th>
             <th className="px-3 py-2.5 text-right">Amount</th>
-            <th className="px-3 py-2.5" />
+            <th className="w-24 px-3 py-2.5" />
           </tr>
         </thead>
         <tbody>
@@ -653,20 +653,22 @@ function RowActions({
 
   if (owner) {
     return (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => void navigate(owner.to)}
-        aria-label={`Open in ${owner.label}`}
-        title={`Managed in ${owner.label}`}
-      >
-        <ExternalLink className="size-3.5" />
-      </Button>
+      <span className="flex items-center justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => void navigate(owner.to)}
+          aria-label={`Open in ${owner.label}`}
+          title={`Managed in ${owner.label}`}
+        >
+          <ExternalLink className="size-3.5" />
+        </Button>
+      </span>
     );
   }
 
   return (
-    <span className="flex items-center">
+    <span className="flex items-center justify-end">
       <Button variant="ghost" size="sm" onClick={onEdit} aria-label="Edit">
         <Pencil className="size-3.5" />
       </Button>
