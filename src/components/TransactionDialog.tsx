@@ -149,6 +149,19 @@ export function TransactionDialog({
             {mode === 'create' ? 'Add transaction' : 'Edit transaction'}
           </DialogTitle>
         </DialogHeader>
+
+        {/* Editing a generated row changes THIS occurrence only. Saying so
+            matters because the row is otherwise indistinguishable from a manual
+            one, and the natural assumption is that it edits the rule. */}
+        {mode === 'edit' && existing?.recurringRuleId ? (
+          <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Created by a recurring rule. Changes here apply to{' '}
+            <strong>this entry only</strong> — the rule keeps its own amount and
+            schedule, and future entries are unaffected. Edit the rule itself in
+            Recurring.
+          </p>
+        ) : null}
+
         <TransactionForm
           mode={mode}
           defaultValues={defaultValues}

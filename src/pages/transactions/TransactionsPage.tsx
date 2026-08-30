@@ -557,6 +557,15 @@ function TransactionTable({
                       Fund
                     </Badge>
                   ) : null}
+                  {/* Recurring rows stay EDITABLE, unlike loan and fund rows —
+                      a rule derives nothing from them, so changing one is just
+                      correcting that month. The badge says where it came from
+                      so the row is not mistaken for something typed by hand. */}
+                  {t.recurringRuleId !== null ? (
+                    <Badge variant="secondary" className="shrink-0">
+                      {t.isEdited ? 'Recurring · edited' : 'Recurring'}
+                    </Badge>
+                  ) : null}
                   {t.type === 'transfer' ? (
                     <Badge variant="secondary" className="shrink-0">
                       Transfer
