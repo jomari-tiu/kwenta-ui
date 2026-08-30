@@ -24,7 +24,7 @@ import {
   todayPlainDate,
 } from '@/lib/date';
 import { formatPeso, formatPeso0 } from '@/lib/money';
-import type { TDashboardSummary, TPeriod } from './_types';
+import type { TDashboardSummary, TDueItem, TPeriod } from './_types';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -243,6 +243,8 @@ export default function DashboardPage() {
               }
             />
           </dl>
+
+          <DueList items={d.dueItems} />
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
@@ -484,4 +486,97 @@ function DashboardSkeleton() {
       </div>
     </div>
   );
+}
+
+const DUE_LIMIT = 8;
+
+/**
+ * What is still owed, itemised — the question the "Pending installments: 3"
+ * tile raises but cannot answer.
+ *
+ * Recurring rules are absent on purpose: a rule writes its transaction on its
+ * date without asking, so it has no unpaid state to report. Listing scheduled
+ * charges here would mix "you owe this" with "this will happen".
+ */
+function DueList({ items }: { items: TDueItem[] }) {
+  const navigate = useNavigate();
+  const shown = items.slice(0, DUE_LIMIT);
+  const overdueCount = items.filter((i) => i.status === 'overdue').length;
+
+  return (
+    <section className="rounded-lg border bg-card shadow-sm">
+      <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
+        <h2 className="text-sm font-bold">Due &amp; unpaid</h2>
+        {overdueCount > 0 ? (
+          <span className="text-2xs font-bold text-danger uppercase">
+            {overdueCount} overdue
+          </span>
+        ) : null}
+      </header>
+
+      {items.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-text-muted">
+          Nothing outstanding. Every installment and loan is settled.
+        </p>
+      ) : (
+        <ul>
+          {shown.map((item) => (
+            <li
+              key={`${item.kind}-${item.id}-${item.dueDate ?? 'none'}`}
+              className="flex items-center gap-3 border-b px-4 py-2.5 last:border-b-0"
+            >
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-sm font-medium">
+                  {item.name}
+                </span>
+                <span className="truncate text-xs text-text-muted">
+                  {item.detail ? `${item.detail} · ` : ''}
+                  <DueWhen item={item} />
+                </span>
+              </span>
+
+              <AmountText centavos={item.amountCentavos} kind="expense" />
+
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Open ${item.name}`}
+                onClick={() =>
+                  void navigate(
+                    item.kind === 'loan' ? '/credit-loans' : '/installments',
+                  )
+                }
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {items.length > DUE_LIMIT ? (
+        <p className="border-t px-4 py-2 text-xs text-text-muted">
+          and {items.length - DUE_LIMIT} more
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+/** Words, not a bare date — "3 days late" is read faster than "Aug 27, 2026". */
+function DueWhen({ item }: { item: TDueItem }) {
+  if (item.status === 'undated') {
+    return <span>no due date</span>;
+  }
+  const days = item.daysUntil ?? 0;
+  if (days < 0) {
+    return (
+      <span className="font-semibold text-danger">
+        {-days === 1 ? '1 day late' : `${-days} days late`}
+      </span>
+    );
+  }
+  if (days === 0) return <span className="font-semibold text-warn">today</span>;
+  if (days === 1) return <span className="text-warn">tomorrow</span>;
+  return <span>in {days} days</span>;
 }

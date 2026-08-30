@@ -18,6 +18,22 @@ export type TCategoryTotal = {
   transactionCount: number;
 };
 
+/**
+ * One thing still owed. Only installments and credit loans have a real unpaid
+ * state — a recurring rule assumes payment on its date, so it never appears.
+ */
+export type TDueItem = {
+  kind: 'installment' | 'loan';
+  id: string;
+  name: string;
+  detail: string | null;
+  amountCentavos: number;
+  dueDate: string | null;
+  status: 'overdue' | 'dueSoon' | 'upcoming' | 'undated';
+  /** Negative when overdue. Null for a loan with no agreed date. */
+  daysUntil: number | null;
+};
+
 export type TDashboardSummary = {
   period: TPeriod;
   label: string;
@@ -33,6 +49,8 @@ export type TDashboardSummary = {
   netCentavos: number;
   savingsRatePercent: number | null;
   netBalanceAllTimeCentavos: number;
+  /** Everything still owed, most urgent first. Always as of today. */
+  dueItems: TDueItem[];
   /** Spendable now: every live account except credit cards, whose balance is debt. */
   disposableCentavos: number;
   /** Sitting in investment pots — real money, but not spendable. */
