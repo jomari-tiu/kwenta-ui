@@ -11,9 +11,143 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Finance Tracker</title>
+
+    <!--
+      LAST-RESORT FALLBACK.
+
+      Everything below is plain HTML and CSS on purpose. It covers the one case
+      the React error screens cannot: the bundle failing to download or parse,
+      so no application code runs at all. That is the true white screen — no
+      component can render, because nothing rendered.
+
+      #boot shows a spinner immediately, and swaps to an explanation if React
+      has not mounted within 10 seconds. main.tsx sets data-app-mounted on
+      <html> the moment it renders, which hides this whole block.
+    -->
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 1.5rem;
+        text-align: center;
+        font-family:
+          'Inter Variable',
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background: #f7f8fa;
+        color: #4a5568;
+      }
+      [data-app-mounted] #boot {
+        display: none;
+      }
+      #boot-spinner {
+        width: 1.75rem;
+        height: 1.75rem;
+        border: 3px solid #d7dbe2;
+        border-top-color: #163052;
+        border-radius: 50%;
+        animation: boot-spin 0.7s linear infinite;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      /* Respects a user who has asked for less motion. */
+      @media (prefers-reduced-motion: reduce) {
+        #boot-spinner {
+          animation-duration: 2.4s;
+        }
+      }
+      #boot-failed {
+        display: none;
+        max-width: 26rem;
+      }
+      #boot[data-failed] #boot-spinner,
+      #boot[data-failed] #boot-loading {
+        display: none;
+      }
+      #boot[data-failed] #boot-failed {
+        display: block;
+      }
+      #boot-title {
+        font-size: 1.0625rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 0.375rem;
+      }
+      #boot-detail {
+        font-size: 0.875rem;
+        line-height: 1.5;
+        margin: 0 0 1rem;
+      }
+      #boot-retry {
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #fff;
+        background: #163052;
+        border: 0;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+      }
+      @media (prefers-color-scheme: dark) {
+        #boot {
+          background: #0f1720;
+          color: #94a3b8;
+        }
+        #boot-title {
+          color: #e2e8f0;
+        }
+        #boot-spinner {
+          border-color: #2d3748;
+          border-top-color: #4ade80;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot">
+        <div id="boot-spinner"></div>
+        <p id="boot-loading">Loading…</p>
+
+        <div id="boot-failed">
+          <p id="boot-title">This app didn’t load</p>
+          <p id="boot-detail">
+            The page reached the server but the application code didn’t start.
+            That is usually a stale or failed deployment. Reloading fixes it
+            most of the time.
+          </p>
+          <button id="boot-retry" type="button">Reload</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var boot = document.getElementById('boot');
+        document.getElementById('boot-retry').addEventListener('click', function () {
+          window.location.reload();
+        });
+        // If the bundle 404s or throws while parsing, main.tsx never runs and
+        // data-app-mounted is never set. Ten seconds is long enough to cover a
+        // slow phone on a bad connection without stranding anyone on a spinner.
+        setTimeout(function () {
+          if (!document.documentElement.dataset.appMounted) {
+            boot.setAttribute('data-failed', '');
+          }
+        }, 10000);
+      })();
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
