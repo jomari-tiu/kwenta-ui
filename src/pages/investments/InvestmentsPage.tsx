@@ -548,10 +548,17 @@ function FundForm({
           name="provider"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Where is it held?</FormLabel>
+              <FormLabel>Held at</FormLabel>
               <FormControl>
-                <Input placeholder="Optional — COL, BPI, SeaBank" {...field} />
+                <Input
+                  placeholder="Pag-IBIG, COL Financial, MariBank"
+                  {...field}
+                />
               </FormControl>
+              <FormDescription>
+                Optional. The institution holding the money — not one of your
+                accounts below.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -697,7 +704,7 @@ function FundForm({
           name="accountId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Fund from</FormLabel>
+              <FormLabel>Money comes from</FormLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -717,6 +724,9 @@ function FundForm({
                   ))}
                 </SelectContent>
               </Select>
+              <FormDescription>
+                The account each contribution is taken out of.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
