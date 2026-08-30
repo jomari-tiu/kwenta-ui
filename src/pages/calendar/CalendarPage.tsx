@@ -90,6 +90,12 @@ export default function CalendarPage() {
               </dd>
             </div>
             <div className="flex items-center gap-1.5">
+              <dt className="text-text-muted">Saved</dt>
+              <dd>
+                <AmountText centavos={month.totals.savedCentavos} rounded />
+              </dd>
+            </div>
+            <div className="flex items-center gap-1.5">
               <dt className="text-text-muted">Net</dt>
               <dd>
                 <AmountText
@@ -133,7 +139,8 @@ export default function CalendarPage() {
           </div>
 
           {month.totals.incomeCentavos === 0 &&
-          month.totals.expenseCentavos === 0 ? (
+          month.totals.expenseCentavos === 0 &&
+          month.totals.savedCentavos === 0 ? (
             <p className="mt-3 text-center text-sm text-text-muted">
               No activity in {formatMonthKey(monthKey)}. Tap a day to add
               something.

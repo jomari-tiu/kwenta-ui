@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   CalendarClock,
   CircleCheck,
+  PiggyBank,
   Repeat,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -115,6 +116,9 @@ export function DayCell({ day, isSelected, compact, onSelect }: DayCellProps) {
               className="size-1.5 rounded-full bg-chart-expense"
             />
           ) : null}
+          {day.savedCentavos !== 0 ? (
+            <span aria-hidden className="size-1.5 rounded-full bg-good" />
+          ) : null}
           {day.transferCentavos > 0 ? (
             <span
               aria-hidden
@@ -138,6 +142,14 @@ export function DayCell({ day, isSelected, compact, onSelect }: DayCellProps) {
           {day.expenseCentavos > 0 ? (
             <span className="tnum text-2xs font-semibold text-ink-expense">
               −{formatPeso0(day.expenseCentavos)}
+            </span>
+          ) : null}
+          {/* Money set aside, not spent — its own line so the expense figure
+              above stays honest about what was consumed. */}
+          {day.savedCentavos !== 0 ? (
+            <span className="tnum text-2xs flex items-center gap-0.5 font-semibold text-good">
+              <PiggyBank className="size-2.5" aria-hidden />
+              {formatPeso0(Math.abs(day.savedCentavos))}
             </span>
           ) : null}
           {/* Neither sign: a transfer moves money without changing the total,
