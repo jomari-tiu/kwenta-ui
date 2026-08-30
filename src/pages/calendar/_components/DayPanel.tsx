@@ -172,6 +172,7 @@ function DayEntries({
 
   const income = entries.filter((e) => e.type === 'income');
   const expense = entries.filter((e) => e.type === 'expense');
+  const transfers = entries.filter((e) => e.type === 'transfer');
 
   if (
     entries.length === 0 &&
@@ -213,6 +214,17 @@ function DayEntries({
           </ul>
         </section>
       ) : null}
+
+      {transfers.length > 0 ? (
+        <section className="mt-5">
+          <SectionLabel>Transfers</SectionLabel>
+          <ul className="flex flex-col gap-1.5">
+            {transfers.map((e) => (
+              <EntryRow key={e.id} txn={e} onEdit={onEditTransaction} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
 }
@@ -244,6 +256,7 @@ function EntryRow({
         <span className="truncate text-xs text-muted-foreground">
           {txn.note ? `${txn.note} · ` : ''}
           {txn.account.name}
+          {txn.transferAccount ? ` → ${txn.transferAccount.name}` : ''}
           {txn.source === 'recurring' ? ' · recurring' : ''}
         </span>
       </span>

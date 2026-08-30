@@ -1,4 +1,9 @@
-import { CalendarClock, CircleCheck, Repeat } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  CalendarClock,
+  CircleCheck,
+  Repeat,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatPeso0 } from '@/lib/money';
 import { partsOf } from '@/lib/date';
@@ -37,6 +42,15 @@ export function DayCell({ day, isSelected, compact, onSelect }: DayCellProps) {
     (d) => d.derivedStatus === 'dueSoon' || d.derivedStatus === 'pending',
   );
   const paidDue = day.dues.some((d) => d.derivedStatus === 'paid');
+
+  // Scheduled recurring money that has NOT happened yet. Rendered faint and
+  // never summed into the day's figures — a forecast must not read as a fact.
+  const projectedIncome = day.projections
+    .filter((p) => p.type === 'income')
+    .reduce((a, p) => a + p.amountCentavos, 0);
+  const projectedExpense = day.projections
+    .filter((p) => p.type === 'expense')
+    .reduce((a, p) => a + p.amountCentavos, 0);
 
   return (
     <button
@@ -101,6 +115,18 @@ export function DayCell({ day, isSelected, compact, onSelect }: DayCellProps) {
               className="size-1.5 rounded-full bg-chart-expense"
             />
           ) : null}
+          {day.transferCentavos > 0 ? (
+            <span
+              aria-hidden
+              className="size-1.5 rounded-full bg-chart-neutral"
+            />
+          ) : null}
+          {day.projections.length > 0 ? (
+            <span
+              aria-hidden
+              className="size-1.5 rounded-full border border-text-faint"
+            />
+          ) : null}
         </span>
       ) : (
         <span className="mt-auto flex flex-col leading-tight">
@@ -112,6 +138,25 @@ export function DayCell({ day, isSelected, compact, onSelect }: DayCellProps) {
           {day.expenseCentavos > 0 ? (
             <span className="tnum text-2xs font-semibold text-ink-expense">
               −{formatPeso0(day.expenseCentavos)}
+            </span>
+          ) : null}
+          {/* Neither sign: a transfer moves money without changing the total,
+              so a + or − here would be a lie. */}
+          {day.transferCentavos > 0 ? (
+            <span className="tnum text-2xs flex items-center gap-0.5 font-semibold text-text-muted">
+              <ArrowLeftRight className="size-2.5" aria-hidden />
+              {formatPeso0(day.transferCentavos)}
+            </span>
+          ) : null}
+          {/* Faint and italic: scheduled, not recorded. */}
+          {projectedIncome > 0 ? (
+            <span className="tnum text-2xs text-text-faint italic">
+              +{formatPeso0(projectedIncome)}
+            </span>
+          ) : null}
+          {projectedExpense > 0 ? (
+            <span className="tnum text-2xs text-text-faint italic">
+              −{formatPeso0(projectedExpense)}
             </span>
           ) : null}
         </span>

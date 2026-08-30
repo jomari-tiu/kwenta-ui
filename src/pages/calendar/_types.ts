@@ -62,6 +62,8 @@ export type TCalendarDay = {
   expenseCentavos: number;
   netCentavos: number;
   transactionCount: number;
+  /** Moved between your own accounts. Neither income nor expense. */
+  transferCentavos: number;
   hasOverdueInstallment: boolean;
   hasDueInstallment: boolean;
   hasProjectedRecurring: boolean;
