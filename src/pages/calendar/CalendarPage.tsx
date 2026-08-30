@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PiggyBank } from 'lucide-react';
 import { AmountText, ErrorState } from '@/components/finance';
 import { Button } from '@/components/ui/button';
 import { TransactionDialog } from '@/components/TransactionDialog';
@@ -90,7 +90,10 @@ export default function CalendarPage() {
               </dd>
             </div>
             <div className="flex items-center gap-1.5">
-              <dt className="text-text-muted">Saved</dt>
+              <dt className="flex items-center gap-1 text-text-muted">
+                <PiggyBank className="size-3.5 text-good" aria-hidden />
+                Saved
+              </dt>
               <dd>
                 <AmountText centavos={month.totals.savedCentavos} rounded />
               </dd>
