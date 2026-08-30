@@ -1,6 +1,6 @@
 {
-  "name": "Finance Tracker",
-  "short_name": "Finance",
+  "name": "Kwenta",
+  "short_name": "Kwenta",
   "start_url": "/calendar",
   "display": "standalone",
   "background_color": "#ffffff",

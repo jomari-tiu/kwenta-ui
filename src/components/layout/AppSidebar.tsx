@@ -49,7 +49,7 @@ export function AppSidebar() {
         <span className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
           <Wallet className="size-4" />
         </span>
-        <span className="font-bold text-heading">Finance</span>
+        <span className="font-bold text-heading">Kwenta</span>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-2">

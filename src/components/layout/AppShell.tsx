@@ -15,7 +15,7 @@ export function AppShell() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
 
-  const title = navItemForPath(pathname)?.label ?? 'Finance';
+  const title = navItemForPath(pathname)?.label ?? 'Kwenta';
 
   function handleLogout() {
     clearToken();

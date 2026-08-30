@@ -66,7 +66,7 @@ export default function LoginPage() {
             <Wallet className="size-6" />
           </span>
           <div>
-            <h1 className="text-2xl">Finance Tracker</h1>
+            <h1 className="text-2xl">Kwenta</h1>
             <p className="mt-1 text-sm text-text-muted">
               Enter your password to continue
             </p>
