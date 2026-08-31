@@ -9,6 +9,8 @@
 export { AmountText } from './AmountText';
 export type { AmountTextProps } from './AmountText';
 
+export { amountPropsFor, fundSignedCentavos } from './amountSign';
+
 export { MoneyInput } from './MoneyInput';
 export type { MoneyInputProps } from './MoneyInput';
 

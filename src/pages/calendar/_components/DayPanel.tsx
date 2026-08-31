@@ -10,7 +10,12 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AmountText, ConfirmDialog, EmptyState } from '@/components/finance';
+import {
+  AmountText,
+  ConfirmDialog,
+  EmptyState,
+  amountPropsFor,
+} from '@/components/finance';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -278,10 +283,7 @@ function EntryRow({
         </span>
       </span>
 
-      <AmountText
-        centavos={txn.amountCentavos}
-        kind={txn.type === 'transfer' ? 'plain' : txn.type}
-      />
+      <AmountText {...amountPropsFor(txn)} />
 
       <span className="flex shrink-0 items-center">
         <Button

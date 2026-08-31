@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, TriangleAlert } from 'lucide-react';
 import {
   AmountText,
   ChartFrame,
@@ -10,6 +10,12 @@ import {
 } from '@/components/finance';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -37,6 +43,10 @@ export default function DashboardPage() {
     params: { period, anchor },
     staleTime: 60_000,
   });
+
+  const [explaining, setExplaining] = useState<'net' | 'disposable' | null>(
+    null,
+  );
 
   const d = data?.result;
   // Whether any business keeps its money in an account of its own. Without
@@ -139,19 +149,48 @@ export default function DashboardPage() {
             </Alert>
           ) : null}
 
-          {/* Exactly ONE hero figure per view. Proportional figures, not
-              tabular — tabular gives every digit a zero's width and makes a big
-              number look loose. */}
-          <section className="rounded-lg border bg-card p-5 shadow-sm">
-            <p className="text-xs font-bold tracking-wide text-text-muted uppercase">
-              Net this period
-            </p>
-            <AmountText centavos={d.netCentavos} kind="net" size="hero" />
-            <p className="mt-1 text-sm text-text-muted">
-              for {d.label} · all-time net{' '}
-              {formatPeso0(d.netBalanceAllTimeCentavos)}
-            </p>
-          </section>
+          {/* The two headline figures share a row and a size on purpose: they
+              answer the two questions people actually ask — "how did this
+              period go" and "what can I spend now" — and one being visually
+              louder implied it was the more important of the two. */}
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <section className="rounded-lg border bg-card p-5 shadow-sm">
+              <dt className="flex items-center justify-between gap-2 text-xs font-bold tracking-wide text-text-muted uppercase">
+                Net this period
+                <ExplainButton
+                  label="How net is worked out"
+                  onClick={() => setExplaining('net')}
+                />
+              </dt>
+              <dd>
+                <AmountText centavos={d.netCentavos} kind="net" size="hero" />
+                <span className="mt-1 block text-sm text-text-muted">
+                  for {d.label} · all-time net{' '}
+                  {formatPeso0(d.netBalanceAllTimeCentavos)}
+                </span>
+              </dd>
+            </section>
+
+            <section className="rounded-lg border bg-card p-5 shadow-sm">
+              <dt className="flex items-center justify-between gap-2 text-xs font-bold tracking-wide text-text-muted uppercase">
+                Disposable money
+                <ExplainButton
+                  label="How disposable money is worked out"
+                  onClick={() => setExplaining('disposable')}
+                />
+              </dt>
+              <dd>
+                <AmountText
+                  centavos={d.disposableCentavos}
+                  kind="net"
+                  size="hero"
+                />
+                <span className="mt-1 block text-sm text-text-muted">
+                  across your accounts, ready to spend
+                </span>
+              </dd>
+            </section>
+          </dl>
 
           {/* Spending and Saved are separate on purpose: money in a fund is
               money you still have, and adding it to groceries would make the
@@ -159,42 +198,29 @@ export default function DashboardPage() {
           <dl className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border bg-card p-4 shadow-sm">
               <dt className="text-2xs font-bold tracking-wide text-text-muted uppercase">
-                Disposable money
-              </dt>
-              <dd className="mt-1">
-                <AmountText
-                  centavos={d.disposableCentavos}
-                  kind="net"
-                  size="lg"
-                />
-                <span className="mt-0.5 block text-2xs text-text-muted">
-                  across your accounts, ready to spend
-                </span>
-              </dd>
-            </div>
-            <div className="rounded-lg border bg-card p-4 shadow-sm">
-              <dt className="text-2xs font-bold tracking-wide text-text-muted uppercase">
                 Invested money
               </dt>
               <dd className="mt-1">
                 <AmountText centavos={d.investedCentavos} size="lg" />
+                {/* "All in" counts what the pots HOLD, not just what was
+                    contributed here — otherwise it silently omits money that
+                    was already in them and reads lower than the truth. */}
                 <span className="mt-0.5 block text-2xs text-text-muted">
                   set aside in funds ·{' '}
-                  {formatPeso0(d.disposableCentavos + d.investedCentavos)} all
-                  in
+                  {formatPeso0(
+                    d.disposableCentavos + d.investments.totalHeldCentavos,
+                  )}{' '}
+                  all in
                 </span>
-                {d.investments.totalGainCentavos !== null ? (
-                  <span
-                    className={cn(
-                      'mt-0.5 block text-2xs font-semibold',
-                      d.investments.totalGainCentavos >= 0
-                        ? 'text-ink-income'
-                        : 'text-ink-expense',
-                    )}
-                  >
-                    {d.investments.totalGainCentavos >= 0 ? '+' : '−'}
-                    {formatPeso0(Math.abs(d.investments.totalGainCentavos))} vs
-                    cost
+                {/* The headline counts only what was contributed THROUGH the
+                    app. A pot that already held money reads far smaller than it
+                    really is, so say what the funds are worth and name the gap
+                    plainly — it is untracked money, never a profit. */}
+                {d.investments.untrackedCentavos > 0 ? (
+                  <span className="mt-0.5 block text-2xs text-text-muted">
+                    worth {formatPeso0(d.investments.totalHeldCentavos)} today ·{' '}
+                    {formatPeso0(d.investments.untrackedCentavos)} of it was
+                    already there
                   </span>
                 ) : null}
               </dd>
@@ -219,9 +245,20 @@ export default function DashboardPage() {
                   />
                   <span className="mt-0.5 block text-2xs text-text-muted">
                     {hasOwnAccounts
-                      ? `held by ${d.businesses.withOwnAccountCount} of ${d.businesses.activeCount} · not counted above`
+                      ? `held by ${d.businesses.withOwnAccountCount} of ${d.businesses.activeCount} · not in Disposable money`
                       : `revenue − costs · kept out of Income and Spending`}
                   </span>
+                  {/* Where the money came from. Without this the tile says a
+                      business holds ₱19,860 and never says you put it there. */}
+                  {d.businesses.capitalCentavos > 0 ? (
+                    <span className="mt-0.5 block text-2xs text-text-muted">
+                      {formatPeso0(d.businesses.capitalCentavos)} put in as
+                      capital
+                      {d.businesses.drawingCentavos > 0
+                        ? ` · ${formatPeso0(d.businesses.drawingCentavos)} drawn back out`
+                        : ''}
+                    </span>
+                  ) : null}
                   {hasOwnAccounts ? (
                     <span
                       className={cn(
@@ -291,6 +328,12 @@ export default function DashboardPage() {
               }
             />
           </dl>
+
+          <ExplainDialog
+            which={explaining}
+            summary={d}
+            onClose={() => setExplaining(null)}
+          />
 
           <DueList items={d.dueItems} />
 
@@ -456,6 +499,165 @@ export default function DashboardPage() {
         </>
       ) : null}
     </div>
+  );
+}
+
+/** A quiet "?" that opens the working-out for the figure beside it. */
+function ExplainButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="flex size-5 shrink-0 items-center justify-center rounded-full border text-text-muted transition-colors hover:bg-muted"
+    >
+      <Info className="size-3" aria-hidden />
+    </button>
+  );
+}
+
+type TExplainRow = { label: string; centavos: number; op: '+' | '-' | '=' };
+
+/**
+ * The arithmetic behind a headline figure, line by line.
+ *
+ * Built from the SAME fields the tile renders, never recomputed here — a
+ * breakdown that derives its own numbers is one that can disagree with the
+ * figure it claims to explain.
+ */
+function ExplainDialog({
+  which,
+  summary,
+  onClose,
+}: {
+  which: 'net' | 'disposable' | null;
+  summary: TDashboardSummary;
+  onClose: () => void;
+}) {
+  if (which === null) return null;
+
+  const isNet = which === 'net';
+
+  const accountsTotal = summary.accountBalances
+    .filter((a) => a.kind !== 'credit_card')
+    .reduce((sum, a) => sum + a.currentBalanceCentavos, 0);
+
+  const rows: TExplainRow[] = isNet
+    ? [
+        {
+          label: 'Income you earned',
+          centavos: summary.incomeCentavos,
+          op: '+',
+        },
+        {
+          label: 'Money you spent',
+          centavos: summary.spendingCentavos,
+          op: '-',
+        },
+        {
+          label: 'Money you set aside in funds',
+          centavos: summary.savedCentavos,
+          op: '-',
+        },
+        {
+          label:
+            summary.businessNetCentavos < 0
+              ? 'What your businesses spent'
+              : 'What your businesses made',
+          centavos: Math.abs(summary.businessNetCentavos),
+          op: summary.businessNetCentavos < 0 ? '-' : '+',
+        },
+        { label: 'Net this period', centavos: summary.netCentavos, op: '=' },
+      ]
+    : [
+        {
+          label: 'All your accounts, credit cards excluded',
+          centavos: accountsTotal,
+          op: '+',
+        },
+        {
+          label: 'Money that belongs to your businesses',
+          centavos: accountsTotal - summary.disposableCentavos,
+          op: '-',
+        },
+        {
+          label: 'Disposable money',
+          centavos: summary.disposableCentavos,
+          op: '=',
+        },
+      ];
+
+  return (
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {isNet
+              ? 'How net this period is worked out'
+              : 'How disposable money is worked out'}
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-sm text-text-muted">
+          {isNet
+            ? `Of what you earned in ${summary.label}, this is what is left after spending, after moving money into funds, and after what your businesses took in or spent. It covers this period only.`
+            : 'What is actually in your accounts right now, whenever it arrived. Credit cards are left out because their balance is what you owe.'}
+        </p>
+
+        <dl className="flex flex-col">
+          {rows.map((r) => (
+            <div
+              key={r.label}
+              className={cn(
+                'flex items-baseline justify-between gap-3 border-b py-2 text-sm last:border-b-0',
+                r.op === '=' && 'mt-1 border-t border-b-0 pt-3 font-semibold',
+              )}
+            >
+              <dt className={r.op === '=' ? '' : 'text-text-muted'}>
+                <span className="mr-1.5 inline-block w-3 text-text-faint">
+                  {r.op === '=' ? '' : r.op}
+                </span>
+                {r.label}
+              </dt>
+              <dd className="tnum">{formatPeso(r.centavos)}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {/* These two get mistaken for each other constantly, so each says what
+            it is NOT. Time versus place is the whole difference. */}
+        <p className="rounded-md bg-muted px-3 py-2 text-xs">
+          {isNet ? (
+            <>
+              Not the same as <strong>Disposable money</strong>. Net is about{' '}
+              <strong>time</strong> — only {summary.label}. Disposable is about{' '}
+              <strong>place</strong> — what sits in your accounts today,
+              whenever it arrived.
+            </>
+          ) : (
+            <>
+              Not the same as <strong>Net this period</strong>. Disposable is
+              about <strong>place</strong> — your accounts right now. Net is
+              about <strong>time</strong> — only what happened in{' '}
+              {summary.label}.
+            </>
+          )}
+        </p>
+
+        <p className="text-2xs text-text-muted">
+          {isNet
+            ? 'Your businesses are included, because they spend from these same accounts. Over all time this figure equals the money actually in your accounts.'
+            : 'A business keeps its own money, so whatever its books say it holds comes off the top — otherwise it would look like yours to spend.'}
+        </p>
+      </DialogContent>
+    </Dialog>
   );
 }
 

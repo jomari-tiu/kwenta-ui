@@ -72,7 +72,7 @@ export const NAV_ITEMS: TNavItem[] = [
   },
   {
     key: 'investments',
-    label: 'Investments',
+    label: 'Savings & Investments',
     to: '/investments',
     icon: PiggyBank,
     section: 'main',

@@ -998,8 +998,12 @@ function MovementDialog({
     control: form.control,
     name: 'accountId',
   });
-  const isSameAccount =
-    business.accountId !== null && chosenAccountId === business.accountId;
+  // MUST mirror the server's rule exactly: no money moves when the business
+  // has no pot of its own, OR when the chosen account IS that pot. Checking
+  // only the second half told the user "Moves into null" while the server
+  // quietly recorded an earmark — the UI promising something it did not do.
+  const isEarmark =
+    business.accountId === null || chosenAccountId === business.accountId;
 
   function handleSubmit(values: TMovementFormValues) {
     const amountCentavos = parsePesoInput(values.amount);
@@ -1086,12 +1090,12 @@ function MovementDialog({
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    {isSameAccount
+                    {isEarmark
                       ? isCapital
-                        ? `Recorded as capital. No money moves — it marks how much of ${business.accountName ?? 'that account'} is the business's, so every balance stays exactly as it is.`
-                        : `Recorded as a drawing. No money moves — it marks what you have taken for yourself out of ${business.accountName ?? 'that account'}.`
+                        ? `No money moves and no balance changes — this only records that some of what is already there is the business's. Give ${business.name} its own account if you want the money actually moved.`
+                        : `No money moves and no balance changes — this only records what you have taken for yourself. Give ${business.name} its own account if you want the money actually moved.`
                       : isCapital
-                        ? `Moves into ${business.accountName}. Neither income nor spending — your total does not change.`
+                        ? `Moves into ${business.accountName}, so that account drops by this much. Neither income nor spending — your total does not change.`
                         : `Moves out of ${business.accountName} and becomes yours to spend.`}
                   </FormDescription>
                   <FormMessage />

@@ -37,13 +37,13 @@ export type TInvestment = {
   targetCentavos: number | null;
   /** Valuation when set, else net contributed — what progress measures. */
   heldCentavos: number;
+  /** Money in this pot the app never saw arrive. Zero when unvalued. */
+  untrackedCentavos: number;
   percentToTarget: number | null;
   targetDate: string | null;
   /** null means not valued — show what went in, never a made-up return. */
   currentValueCentavos: number | null;
   valueAsOf: string | null;
-  gainCentavos: number | null;
-  gainPercent: number | null;
   categoryId: string;
   accountId: string;
   note: string | null;
@@ -57,6 +57,9 @@ export type TInvestmentFlow = {
   amountCentavos: number;
   txnDate: string;
   note: string | null;
+  /** Which account the money moved through. */
+  accountName: string;
+  categoryName: string | null;
 };
 
 export type TInvestmentDetail = TInvestment & { flows: TInvestmentFlow[] };
@@ -67,7 +70,10 @@ export type TInvestmentSummary = {
   untargetedCount: number;
   totalNetContributedCentavos: number;
   totalCurrentValueCentavos: number | null;
-  totalGainCentavos: number | null;
+  /** Value when set, else contributions — covers unvalued funds too. */
+  totalHeldCentavos: number;
+  /** Money in the pots this app never saw arrive. Per-fund, floored at zero. */
+  untrackedCentavos: number;
   nextTargetDate: string | null;
 };
 

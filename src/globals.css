@@ -69,6 +69,7 @@
   --color-chart-neutral: var(--chart-neutral);
   --color-ink-income: var(--ink-income);
   --color-ink-expense: var(--ink-expense);
+  --color-ink-saved: var(--ink-saved);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -142,6 +143,12 @@
   /* ---- text ink: WCAG 4.5:1 on card ---- */
   --ink-income: #15734b; /* 5.86:1 on #ffffff */
   --ink-expense: #b91c1c; /* 6.47:1 on #ffffff */
+  /* Money moved into a fund. Its own ink because it is neither earned nor
+     spent, and because `--good` — the mark colour the calendar uses for the
+     same idea — is only 4.33:1 here and 3.07:1 in dark, below the text bar.
+     Deliberately NOT a green: a green +₱5,000 in a ledger reads as income,
+     which is the one thing a contribution is not. */
+  --ink-saved: #0e7490; /* 5.36:1 on #ffffff */
 
   /* ---- shadcn semantic aliases ---- */
   --background: #f4f6f9;
@@ -217,6 +224,7 @@
   --chart-neutral: #5b8fc7; /* 3.93:1 on #163052 */
   --ink-income: #4ade80; /* 7.63:1 on #163052 */
   --ink-expense: #f87171; /* 4.81:1 on #163052 */
+  --ink-saved: #67e8f9; /* 9.18:1 on #163052 */
 
   --background: #0e2138;
   --foreground: var(--text);

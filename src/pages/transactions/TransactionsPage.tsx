@@ -9,7 +9,12 @@ import {
   X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { AmountText, ConfirmDialog, ErrorState } from '@/components/finance';
+import {
+  AmountText,
+  ConfirmDialog,
+  ErrorState,
+  amountPropsFor,
+} from '@/components/finance';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,7 +41,7 @@ import { TransactionDialog } from '@/components/TransactionDialog';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useIsMobile } from '@/hooks/useMobile';
 import { formatDisplayDate } from '@/lib/date';
-import { formatPeso, parsePesoInput } from '@/lib/money';
+import { formatPeso, formatPesoNet, parsePesoInput } from '@/lib/money';
 import { useAccounts } from '@/pages/accounts/_hooks/api';
 import { useCategories } from '@/pages/categories/_hooks/api';
 import {
@@ -332,8 +337,11 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
+      {/* Split the same way the dashboard and the sections below split it. One
+          lumped "Expense" tile counted money put into funds as spending, so a
+          month that saved ₱54,000 showed a NEGATIVE net. */}
       {summary ? (
-        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           <SummaryTile label="Matching" value={String(summary.count)} />
           <SummaryTile
             label="Income"
@@ -341,9 +349,13 @@ export default function TransactionsPage() {
             tone="income"
           />
           <SummaryTile
-            label="Expense"
-            value={formatPeso(summary.expenseCentavos)}
+            label="Spending"
+            value={formatPeso(summary.spendingCentavos)}
             tone="expense"
+          />
+          <SummaryTile
+            label="Saved"
+            value={formatPeso(summary.savedCentavos)}
           />
           <SummaryTile
             label="Net"
@@ -467,7 +479,11 @@ function BucketSection({
   hasFilters: boolean;
 }) {
   const [page, setPage] = useState(1);
-  const [isOpen, setIsOpen] = useState(section.isMain ?? false);
+  // Open by default. Collapsing everything but Expenses hid whole categories of
+  // money behind a header people do not think to click — a business cost was
+  // recorded, listed correctly, and still looked missing. Empty sections remove
+  // themselves below, so this does not fill the page with nothing.
+  const [isOpen, setIsOpen] = useState(true);
 
   // Adjusting state during render, the documented alternative to an effect:
   // without it a section left on page 3 shows an empty table once a filter
@@ -529,7 +545,13 @@ function BucketSection({
         </span>
         <span className="flex shrink-0 items-center gap-3">
           <span className="text-sm tabular-nums text-text-muted">
-            {total} · {formatPeso(headlineCentavos)}
+            {/* Funds get an explicit sign so the header sits on the same axis
+                as its rows: + means money went in, − means a net withdrawal.
+                Without it a saving month and a raiding month look alike. */}
+            {total} ·{' '}
+            {section.bucket === 'invested'
+              ? formatPesoNet(headlineCentavos)
+              : formatPeso(headlineCentavos)}
           </span>
           <ChevronDown
             className={cn(
@@ -708,10 +730,7 @@ function TransactionTable({
                 </span>
               </td>
               <td className="px-3 py-2.5 text-right">
-                <AmountText
-                  centavos={t.amountCentavos}
-                  kind={t.type === 'transfer' ? 'plain' : t.type}
-                />
+                <AmountText {...amountPropsFor(t)} />
               </td>
               <td className="px-1 py-2.5 text-right">
                 <RowActions txn={t} onEdit={() => onEdit(t)} />
@@ -748,10 +767,7 @@ function TransactionCard({
         ) : null}
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
-        <AmountText
-          centavos={txn.amountCentavos}
-          kind={txn.type === 'transfer' ? 'plain' : txn.type}
-        />
+        <AmountText {...amountPropsFor(txn)} />
         <RowActions txn={txn} onEdit={onEdit} />
       </span>
     </li>
@@ -782,7 +798,7 @@ function RowActions({
     txn.creditLoanId !== null
       ? { to: '/credit-loans', label: 'Credit Loans' }
       : txn.investmentId !== null
-        ? { to: '/investments', label: 'Investments' }
+        ? { to: '/investments', label: 'Savings & Investments' }
         : txn.businessId !== null
           ? { to: '/businesses', label: 'Businesses' }
           : null;

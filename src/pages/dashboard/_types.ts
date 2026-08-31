@@ -81,7 +81,10 @@ export type TDashboardSummary = {
     totalNetContributedCentavos: number;
     /** Null when nothing is valued — a ₱0 total would read as a total loss. */
     totalCurrentValueCentavos: number | null;
-    totalGainCentavos: number | null;
+    /** Value when set, else contributions — across every active fund. */
+    totalHeldCentavos: number;
+    /** Money in the pots that this app never saw arrive. */
+    untrackedCentavos: number;
     nextTargetDate: string | null;
   };
   businesses: {
@@ -92,6 +95,9 @@ export type TDashboardSummary = {
     netCashCentavos: number;
     /** Cash sitting in the business accounts right now. */
     heldCentavos: number;
+    /** Money put in as capital, and money drawn back out. */
+    capitalCentavos: number;
+    drawingCentavos: number;
     /** What the books say the businesses hold, wherever it sits. */
     ownedCentavos: number;
     /** True when a business's books disagree with its account balance. */

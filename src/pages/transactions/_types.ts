@@ -43,8 +43,16 @@ export type TTransaction = {
 };
 
 export type TTransactionSummary = {
+  /** Personal income: excludes fund withdrawals and business revenue. */
   incomeCentavos: number;
+  /** Every expense row, funds and business costs included. */
   expenseCentavos: number;
+  /** Money consumed: excludes fund contributions and business costs. */
+  spendingCentavos: number;
+  /** Net moved into funds. Still yours. */
+  savedCentavos: number;
+  /** Business revenue minus costs. */
+  businessNetCentavos: number;
   /** Total moved by transfers. Not part of net — a transfer changes no total. */
   transferCentavos: number;
   netCentavos: number;

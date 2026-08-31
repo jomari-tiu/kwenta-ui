@@ -56,6 +56,7 @@ import {
   ErrorState,
   Meter,
   MoneyInput,
+  fundSignedCentavos,
 } from '@/components/finance';
 import { formatDisplayDate, todayPlainDate } from '@/lib/date';
 import { centavosToInputString, formatPeso, parsePesoInput } from '@/lib/money';
@@ -91,9 +92,11 @@ export default function InvestmentsPage() {
   const [adding, setAdding] = useState<TInvestment | null>(null);
   const [taking, setTaking] = useState<TInvestment | null>(null);
   const [viewing, setViewing] = useState<TInvestment | null>(null);
+  const [showingUntracked, setShowingUntracked] = useState(false);
 
   const { data, isPending, isError, refetch } = useInvestments(status);
   const { data: summaryData } = useInvestmentSummary();
+  const { data: activeData } = useInvestments('active');
 
   const funds = data?.result ?? [];
   const summary = summaryData?.result;
@@ -124,36 +127,28 @@ export default function InvestmentsPage() {
             label="Total put in"
             value={formatPeso(summary.totalNetContributedCentavos)}
           />
-          {/* An em dash, not ₱0.00: nothing valued is not the same as worthless. */}
+          {/* HELD, not just the valued funds: a fund with no valuation still
+              holds what was put into it, and counting only valued ones made
+              this tile smaller than the cards directly beneath it added up to. */}
           <Tile
             label="Current value"
-            value={
-              summary.totalCurrentValueCentavos === null
-                ? '—'
-                : formatPeso(summary.totalCurrentValueCentavos)
-            }
+            value={formatPeso(summary.totalHeldCentavos)}
             hint={
               summary.totalCurrentValueCentavos === null
-                ? 'no valuations yet'
+                ? 'from what you put in — no valuations yet'
                 : undefined
             }
           />
-          <Tile
-            label="Gain"
-            value={
-              summary.totalGainCentavos === null
-                ? '—'
-                : formatPeso(summary.totalGainCentavos)
-            }
-            good={
-              summary.totalGainCentavos !== null &&
-              summary.totalGainCentavos > 0
-            }
-            danger={
-              summary.totalGainCentavos !== null &&
-              summary.totalGainCentavos < 0
-            }
-          />
+          {/* Only when there IS untracked money. A ₱0.00 tile here would be
+              noise on a portfolio where every peso was logged through the app. */}
+          {summary.untrackedCentavos > 0 ? (
+            <Tile
+              label="Already there"
+              value={formatPeso(summary.untrackedCentavos)}
+              hint="not put in here · tap to see which"
+              onClick={() => setShowingUntracked(true)}
+            />
+          ) : null}
         </dl>
       ) : null}
 
@@ -188,6 +183,12 @@ export default function InvestmentsPage() {
       )}
 
       <FlowHistoryPanel fund={viewing} onClose={() => setViewing(null)} />
+
+      <UntrackedDialog
+        open={showingUntracked}
+        onClose={() => setShowingUntracked(false)}
+        funds={activeData?.result ?? []}
+      />
 
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-md">
@@ -240,15 +241,18 @@ function Tile({
   hint,
   good,
   danger,
+  onClick,
 }: {
   label: string;
   value: string;
   hint?: string;
   good?: boolean;
   danger?: boolean;
+  /** Makes the tile a button. Only pass one when there is something to open. */
+  onClick?: () => void;
 }) {
-  return (
-    <div className="rounded-lg border bg-card p-3.5 shadow-sm">
+  const body = (
+    <>
       <dt className="text-2xs font-bold tracking-wide text-muted-foreground uppercase">
         {label}
       </dt>
@@ -264,7 +268,111 @@ function Tile({
       {hint ? (
         <p className="text-2xs mt-0.5 text-muted-foreground">{hint}</p>
       ) : null}
+    </>
+  );
+
+  // A real button when clickable, so keyboard and screen readers get it for
+  // free rather than a div with a click handler bolted on.
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="rounded-lg border bg-card p-3.5 text-left shadow-sm transition-colors hover:bg-muted"
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border bg-card p-3.5 shadow-sm">{body}</div>
+  );
+}
+
+/**
+ * One labelled line on a fund card. Its own row so the divider spans the full
+ * width, and so the rows stay aligned however many of them are shown.
+ */
+function DetailRow({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b py-1.5 last:border-b-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={cn('tnum text-right', strong && 'font-semibold')}>
+        {value}
+      </dd>
     </div>
+  );
+}
+
+/**
+ * Where the "already there" money is. Broken down per fund and computed the
+ * same way the API does — value minus this fund's own contributions, floored
+ * at zero — so the rows always add up to the tile that opened them.
+ */
+function UntrackedDialog({
+  open,
+  onClose,
+  funds,
+}: {
+  open: boolean;
+  onClose: () => void;
+  funds: TInvestment[];
+}) {
+  // Server-derived, not recomputed here: one definition of "already there",
+  // shared by the card, this dialog and the summary tile.
+  const rows = funds
+    .filter((f) => f.untrackedCentavos > 0)
+    .sort((a, b) => b.untrackedCentavos - a.untrackedCentavos);
+
+  const total = rows.reduce((sum, f) => sum + f.untrackedCentavos, 0);
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Money already in your funds</DialogTitle>
+        </DialogHeader>
+
+        <p className="text-sm text-muted-foreground">
+          These pots were already holding money before you started tracking
+          here, so this app never saw it arrive. It is your money — not a gain,
+          and not counted in Total put in.
+        </p>
+
+        <ul className="flex flex-col divide-y rounded-lg border">
+          {rows.map((fund) => (
+            <li key={fund.id} className="flex flex-col gap-0.5 p-3">
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="truncate text-sm font-medium">
+                  {fund.name}
+                </span>
+                <span className="tnum shrink-0 text-sm font-semibold">
+                  {formatPeso(fund.untrackedCentavos)}
+                </span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                worth {formatPeso(fund.currentValueCentavos ?? 0)} · you put in{' '}
+                {formatPeso(fund.netContributedCentavos)} here
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="flex items-baseline justify-between gap-3 border-t pt-3 text-sm font-semibold">
+          <span>Total</span>
+          <span className="tnum">{formatPeso(total)}</span>
+        </p>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -344,44 +452,45 @@ function FundCard({
         </div>
       )}
 
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 border-t pt-2.5 text-xs">
-        <dt className="text-muted-foreground">Value</dt>
-        <dd className="tnum text-right font-semibold">
-          {fund.currentValueCentavos === null
-            ? '—'
-            : formatPeso(fund.currentValueCentavos)}
-        </dd>
+      {/* A flex column of bordered rows rather than a 2-column grid: a grid
+          cannot draw a line across a dt/dd pair without bordering each cell
+          separately, which leaves a seam down the middle. */}
+      <dl className="flex flex-col border-t text-xs">
+        <DetailRow
+          label="Value"
+          value={
+            fund.currentValueCentavos === null
+              ? '—'
+              : formatPeso(fund.currentValueCentavos)
+          }
+          strong
+        />
 
-        {fund.gainCentavos !== null ? (
+        {/* Splits the value into where it came from. Without this the card
+            shows ₱17,000 held against ₱0 contributed with no explanation of
+            how both can be true. */}
+        {fund.untrackedCentavos > 0 ? (
           <>
-            <dt className="text-muted-foreground">Gain</dt>
-            <dd
-              className={cn(
-                'tnum text-right font-semibold',
-                fund.gainCentavos > 0 && 'text-ink-income',
-                fund.gainCentavos < 0 && 'text-ink-expense',
-              )}
-            >
-              {/* Sign prefix, never colour alone — the CVD fallback. */}
-              {fund.gainCentavos > 0 ? '+' : ''}
-              {formatPeso(fund.gainCentavos)}
-              {fund.gainPercent === null ? '' : ` (${fund.gainPercent}%)`}
-            </dd>
+            <DetailRow
+              label="Put in here"
+              value={formatPeso(fund.netContributedCentavos)}
+            />
+            <DetailRow
+              label="Already there"
+              value={formatPeso(fund.untrackedCentavos)}
+            />
           </>
         ) : null}
 
         {fund.valueAsOf ? (
-          <>
-            <dt className="text-muted-foreground">As of</dt>
-            <dd className="text-right">{formatDisplayDate(fund.valueAsOf)}</dd>
-          </>
+          <DetailRow label="As of" value={formatDisplayDate(fund.valueAsOf)} />
         ) : null}
 
         {fund.targetDate ? (
-          <>
-            <dt className="text-muted-foreground">Goal date</dt>
-            <dd className="text-right">{formatDisplayDate(fund.targetDate)}</dd>
-          </>
+          <DetailRow
+            label="Goal date"
+            value={formatDisplayDate(fund.targetDate)}
+          />
         ) : null}
       </dl>
 
@@ -1125,8 +1234,12 @@ function FlowHistoryPanel({
     <Sheet open={fund !== null} onOpenChange={(next) => !next && onClose()}>
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
+        // The sheet's own data-[side=right]:w-3/4 is more specific than a bare
+        // sm:w-1/2, so the width has to be set on the same variant to win.
         className={
-          isMobile ? 'max-h-[88dvh] rounded-t-2xl' : 'w-full sm:max-w-md'
+          isMobile
+            ? 'max-h-[88dvh] rounded-t-2xl'
+            : 'w-full data-[side=right]:sm:w-1/2 data-[side=right]:sm:max-w-none'
         }
       >
         <SheetHeader>
@@ -1182,6 +1295,8 @@ function FlowRow({
     amountCentavos: number;
     txnDate: string;
     note: string | null;
+    accountName: string;
+    categoryName: string | null;
   };
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -1205,16 +1320,23 @@ function FlowRow({
         <span className="text-sm font-medium">
           {formatDisplayDate(flow.txnDate)}
         </span>
+        {/* The account is the part that was missing: with contributions now
+            able to come from any account, "Added ₱5,000" alone does not say
+            where the money left from. */}
         <span className="truncate text-xs text-muted-foreground">
-          {isContribution ? 'Added' : 'Withdrawn'}
-          {flow.note ? ` · ${flow.note}` : ''}
+          {isContribution ? 'Added from' : 'Withdrawn to'} {flow.accountName}
+          {flow.categoryName ? ` · ${flow.categoryName}` : ''}
         </span>
+        {flow.note ? (
+          <span className="truncate text-xs text-muted-foreground">
+            {flow.note}
+          </span>
+        ) : null}
       </span>
 
-      <AmountText
-        centavos={flow.amountCentavos}
-        kind={isContribution ? 'expense' : 'income'}
-      />
+      {/* Signed by the FUND, not the ledger: every row here is a fund movement,
+          and a red minus beside "Added from Gotyme" reads as money spent. */}
+      <AmountText centavos={fundSignedCentavos(flow)} kind="saved" />
 
       <Button
         variant="ghost"
