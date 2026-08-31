@@ -282,16 +282,25 @@ function FundCard({
   onHistory: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  // Defaults to KEEPING the entries: deleting real ledger rows by accident is
+  // the worse of the two mistakes, so the destructive option is opted into.
+  // The dialog spells out both, because keeping them is what makes money look
+  // like it vanished from an account.
+  const [refund, setRefund] = useState(false);
+  const hasEntries = fund.contributedCentavos > 0 || fund.withdrawnCentavos > 0;
   const del = useDeleteInvestment(fund.id);
 
   async function handleDelete() {
-    const res = await del.mutateAsync();
+    const res = await del.mutateAsync({ removeTransactions: refund });
     toast.success(
-      res.keptTransactionCount > 0
-        ? `Fund deleted. ${res.keptTransactionCount} entr${res.keptTransactionCount === 1 ? 'y' : 'ies'} kept in your ledger.`
-        : 'Fund deleted.',
+      res.removedTransactionCount > 0
+        ? `Fund deleted. ${res.removedTransactionCount} entr${res.removedTransactionCount === 1 ? 'y' : 'ies'} removed — the money is back in your accounts.`
+        : res.keptTransactionCount > 0
+          ? `Fund deleted. ${res.keptTransactionCount} entr${res.keptTransactionCount === 1 ? 'y' : 'ies'} kept in your ledger.`
+          : 'Fund deleted.',
     );
     setConfirming(false);
+    setRefund(false);
   }
 
   return (
@@ -312,8 +321,10 @@ function FundCard({
       {fund.targetCentavos !== null ? (
         <div>
           <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2 text-sm">
+            {/* Reads what the pot HOLDS, not only what was logged here, so
+                the figure and the bar agree with each other. */}
             <span className="tnum">
-              {formatPeso(fund.netContributedCentavos)} of{' '}
+              {formatPeso(fund.heldCentavos)} of{' '}
               {formatPeso(fund.targetCentavos)}
             </span>
             <span className="text-muted-foreground">
@@ -414,11 +425,55 @@ function FundCard({
         onClose={() => setConfirming(false)}
         onConfirm={() => void handleDelete()}
         title="Delete this fund?"
-        description="Contributions and withdrawals you already recorded stay in your ledger — that money really did move."
+        description={
+          hasEntries
+            ? `This fund has ${fund.contributedCentavos > 0 ? formatPeso(fund.netContributedCentavos) : 'entries'} recorded against it. Choose what happens to that money.`
+            : 'Nothing has been recorded against this fund, so no money is affected.'
+        }
         confirmLabel="Delete"
         tone="danger"
         loading={del.isPending}
-      />
+      >
+        {hasEntries ? (
+          <fieldset className="mt-1 flex flex-col gap-2">
+            <legend className="sr-only">What happens to the money</legend>
+            {[
+              {
+                value: false,
+                label: 'Keep the entries',
+                hint: 'The money really left your accounts, so the balances stay as they are. The entries just stop belonging to a fund.',
+              },
+              {
+                value: true,
+                label: 'Put the money back',
+                hint: 'Deletes those entries, so your balances rise back by exactly what went in. Use this if the money never actually moved.',
+              },
+            ].map((opt) => (
+              <label
+                key={String(opt.value)}
+                className={cn(
+                  'flex cursor-pointer gap-2.5 rounded-md border p-2.5 text-left',
+                  refund === opt.value && 'border-primary bg-accent',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="refund"
+                  className="mt-0.5"
+                  checked={refund === opt.value}
+                  onChange={() => setRefund(opt.value)}
+                />
+                <span>
+                  <span className="block text-sm font-medium">{opt.label}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {opt.hint}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+      </ConfirmDialog>
     </li>
   );
 }
@@ -756,10 +811,19 @@ function ContributeForm({
   onDone: () => void;
 }) {
   const contribute = useContribute(fund.id);
+  const { data: accountData } = useAccounts();
+  const accounts = accountData?.result ?? [];
 
   const form = useForm<TContributeFormValues>({
     resolver: zodResolver(contributeSchema),
-    defaultValues: { amount: '', paidDate: todayPlainDate(), note: '' },
+    defaultValues: {
+      amount: '',
+      paidDate: todayPlainDate(),
+      // The fund's own account is the usual answer, but not the only one — the
+      // money can come from wherever you actually paid it from.
+      accountId: fund.accountId,
+      note: '',
+    },
   });
 
   async function handleSubmit(values: TContributeFormValues) {
@@ -769,6 +833,7 @@ function ContributeForm({
     await contribute.mutateAsync({
       amountCentavos,
       paidDate: values.paidDate,
+      accountId: values.accountId,
       note: values.note?.trim() ? values.note.trim() : null,
     });
     toast.success(`Added · ${formatPeso(amountCentavos)} expense recorded`);
@@ -803,7 +868,41 @@ function ContributeForm({
                 />
               </FormControl>
               <FormDescription>
-                Recorded as a real expense on the fund's account.
+                Recorded as a real expense, so the account below drops by this
+                much.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="accountId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>From account</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Pick an account">
+                      {(v) =>
+                        accounts.find((a) => a.id === v)?.name ??
+                        'Pick an account'
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Which account the money leaves. Defaults to the fund's own.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -851,6 +950,8 @@ function WithdrawForm({
     kind: 'income',
     scope: 'personal',
   });
+  const { data: accountData } = useAccounts();
+  const accounts = accountData?.result ?? [];
 
   const form = useForm<TWithdrawFormValues>({
     resolver: zodResolver(withdrawSchema),
@@ -858,6 +959,7 @@ function WithdrawForm({
       amount: '',
       paidDate: todayPlainDate(),
       categoryId: '',
+      accountId: fund.accountId,
       note: '',
     },
   });
@@ -870,6 +972,7 @@ function WithdrawForm({
       amountCentavos,
       categoryId: values.categoryId,
       paidDate: values.paidDate,
+      accountId: values.accountId,
       note: values.note?.trim() ? values.note.trim() : null,
     });
     toast.success(`Withdrawn · ${formatPeso(amountCentavos)} income recorded`);
@@ -937,6 +1040,39 @@ function WithdrawForm({
                   ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="accountId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Into account</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Pick an account">
+                      {(v) =>
+                        accounts.find((a) => a.id === v)?.name ??
+                        'Pick an account'
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Which account the money lands in. Defaults to the fund's own.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

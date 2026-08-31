@@ -35,6 +35,8 @@ export type TInvestment = {
   netContributedCentavos: number;
   /** null means no goal — render no progress bar at all. */
   targetCentavos: number | null;
+  /** Valuation when set, else net contributed — what progress measures. */
+  heldCentavos: number;
   percentToTarget: number | null;
   targetDate: string | null;
   /** null means not valued — show what went in, never a made-up return. */
@@ -118,6 +120,8 @@ export const contributeSchema = z.object({
     .min(1, 'Enter the amount')
     .refine((v) => (parsePesoInput(v) ?? 0) > 0, 'Enter an amount above zero'),
   paidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date'),
+  /** Which account the money actually moves through. */
+  accountId: z.string().min(1, 'Pick an account'),
   note: z.string().max(200).optional(),
 });
 

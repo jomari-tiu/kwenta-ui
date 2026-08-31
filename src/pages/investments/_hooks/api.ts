@@ -69,8 +69,14 @@ export function useUpdateInvestment(id: string) {
  * this is a ledger event: balances and the transactions list must re-read.
  */
 export function useDeleteInvestment(id: string) {
-  return useMutate<void, { keptTransactionCount: number }>({
-    url: `/api/v1/investments/${id}`,
+  return useMutate<
+    { removeTransactions: boolean },
+    { keptTransactionCount: number; removedTransactionCount: number }
+  >({
+    // The choice rides in the URL because DELETE bodies are not reliably
+    // forwarded by every proxy, and this decides whether real money moves.
+    url: (v) =>
+      `/api/v1/investments/${id}?removeTransactions=${String(v.removeTransactions)}`,
     method: 'delete',
     invalidateKeys: [...LEDGER_KEYS, [INVESTMENTS_KEY]],
   });
@@ -79,7 +85,12 @@ export function useDeleteInvestment(id: string) {
 /** A contribution creates a real expense — full ledger blast radius. */
 export function useContribute(id: string) {
   return useMutate<
-    { amountCentavos: number; paidDate?: string; note?: string | null },
+    {
+      amountCentavos: number;
+      paidDate?: string;
+      accountId?: string;
+      note?: string | null;
+    },
     { transactionId: string }
   >({
     url: `/api/v1/investments/${id}/contribute`,
@@ -95,6 +106,7 @@ export function useWithdraw(id: string) {
       amountCentavos: number;
       categoryId: string;
       paidDate?: string;
+      accountId?: string;
       note?: string | null;
     },
     { transactionId: string }
