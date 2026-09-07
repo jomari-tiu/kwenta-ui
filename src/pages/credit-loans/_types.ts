@@ -15,6 +15,17 @@ export type TCreditLoan = {
   dueDate: string | null;
   categoryId: string;
   accountId: string;
+  /** Null when the debt is personal. Set means repayments are business costs. */
+  businessId: string | null;
+  businessName: string | null;
+  /**
+   * Where the server will actually draw a repayment from. When
+   * `isRepayAccountFixed` is true the business keeps its own account and pays
+   * its own costs from it, so the repay dialog shows this as text rather than
+   * offering a choice it would not honour.
+   */
+  repayAccountId: string;
+  isRepayAccountFixed: boolean;
   note: string | null;
   isSettled: boolean;
   status: TLoanStatus;
@@ -58,6 +69,11 @@ export const creditLoanSchema = z.object({
     ),
   categoryId: z.string().min(1, 'Category is required'),
   accountId: z.string().min(1, 'Account is required'),
+  /**
+   * '' means personal, exactly as an empty dueDate means "no agreed date" —
+   * it is a real choice, not a missing value, so it never fails validation.
+   */
+  businessId: z.string(),
   note: z.string().max(200).optional(),
 });
 
@@ -70,6 +86,8 @@ export type TCreditLoanPayload = {
   dueDate?: string | null;
   categoryId: string;
   accountId: string;
+  /** null moves the loan back to the personal books. */
+  businessId?: string | null;
   note?: string | null;
 };
 

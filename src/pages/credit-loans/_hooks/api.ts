@@ -5,6 +5,7 @@ import {
   LEDGER_KEYS,
   toKeyPart,
 } from '@/lib/queryKeys';
+import { BUSINESSES_KEY } from '@/pages/businesses/_hooks/api';
 import type {
   TCreditLoan,
   TCreditLoanDetail,
@@ -79,15 +80,29 @@ export function useDeleteCreditLoan(id: string) {
   });
 }
 
-/** A repayment creates a real expense — full ledger blast radius. */
+/**
+ * A repayment creates a real expense — full ledger blast radius, plus the
+ * businesses list.
+ *
+ * BUSINESSES_KEY is load-bearing, not defensive: a repayment on a
+ * business-tagged loan writes a business COST, which moves that business's net
+ * cash, its expected balance and its reconciliation figure. Without this the
+ * Businesses page keeps showing the pre-payment books until something else
+ * happens to refetch it.
+ */
 export function useRepayCreditLoan(id: string) {
   return useMutate<
-    { amountCentavos: number; paidDate?: string; note?: string | null },
+    {
+      amountCentavos: number;
+      paidDate?: string;
+      accountId?: string;
+      note?: string | null;
+    },
     { transactionId: string }
   >({
     url: `/api/v1/credit-loans/${id}/repay`,
     method: 'post',
-    invalidateKeys: [...LEDGER_KEYS, [CREDIT_LOANS_KEY]],
+    invalidateKeys: [...LEDGER_KEYS, [CREDIT_LOANS_KEY], [BUSINESSES_KEY]],
   });
 }
 
@@ -99,6 +114,8 @@ export function useDeleteRepayment(loanId: string) {
   return useMutate<{ transactionId: string }, unknown>({
     url: (v) => `/api/v1/credit-loans/${loanId}/repayments/${v.transactionId}`,
     method: 'delete',
-    invalidateKeys: [...LEDGER_KEYS, [CREDIT_LOANS_KEY]],
+    // Same blast radius as making the payment — undoing a business cost moves
+    // that business's books back just as surely.
+    invalidateKeys: [...LEDGER_KEYS, [CREDIT_LOANS_KEY], [BUSINESSES_KEY]],
   });
 }

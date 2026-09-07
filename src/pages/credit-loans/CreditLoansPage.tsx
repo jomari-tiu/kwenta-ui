@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CalendarOff,
@@ -7,6 +7,7 @@ import {
   History,
   Pencil,
   Plus,
+  Store,
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
@@ -58,6 +59,7 @@ import {
 import { formatDisplayDate, todayPlainDate } from '@/lib/date';
 import { centavosToInputString, formatPeso, parsePesoInput } from '@/lib/money';
 import { useAccounts } from '@/pages/accounts/_hooks/api';
+import { useBusinesses } from '@/pages/businesses/_hooks/api';
 import { useCategories } from '@/pages/categories/_hooks/api';
 import {
   useCreateCreditLoan,
@@ -256,6 +258,14 @@ function LoanCard({
               {loan.lender}
             </p>
           ) : null}
+          {/* Whose debt this is changes where every repayment lands, so it is
+              on the card rather than only inside the edit dialog. */}
+          {loan.businessName ? (
+            <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+              <Store className="size-3" />
+              {loan.businessName}
+            </span>
+          ) : null}
         </div>
         <StatusBadge status={loan.status} />
       </div>
@@ -378,11 +388,8 @@ function LoanForm({
 }) {
   const create = useCreateCreditLoan();
   const update = useUpdateCreditLoan(existing?.id ?? '');
-  const { data: categoryData } = useCategories({
-    kind: 'expense',
-    scope: 'personal',
-  });
   const { data: accountData } = useAccounts();
+  const { data: businessData } = useBusinesses('active');
 
   const form = useForm<TCreditLoanFormValues>({
     resolver: zodResolver(creditLoanSchema),
@@ -394,6 +401,7 @@ function LoanForm({
           dueDate: existing.dueDate ?? '',
           categoryId: existing.categoryId,
           accountId: existing.accountId,
+          businessId: existing.businessId ?? '',
           note: existing.note ?? '',
         }
       : {
@@ -403,9 +411,33 @@ function LoanForm({
           dueDate: '',
           categoryId: '',
           accountId: '',
+          businessId: '',
           note: '',
         },
   });
+
+  /**
+   * The category picker follows the business choice, because the API rejects a
+   * mismatch outright — offering personal categories on a business loan would
+   * only be a way to earn a 400.
+   */
+  // useWatch, not form.watch(): the compiler cannot memoize the returned
+  // function, and this value is fed straight into useCategories below.
+  const businessId = useWatch({ control: form.control, name: 'businessId' });
+  const { data: categoryData } = useCategories({
+    kind: 'expense',
+    scope: businessId ? 'business' : 'personal',
+  });
+
+  const businesses = businessData?.result ?? [];
+  const chosenBusiness = businesses.find((b) => b.id === businessId);
+
+  /**
+   * Repayments already recorded pin the loan to whichever books they landed
+   * in — the API refuses the move rather than silently re-tagging history, so
+   * the control is disabled instead of failing on submit.
+   */
+  const hasRepayments = (existing?.repaidCentavos ?? 0) > 0;
 
   async function handleSubmit(values: TCreditLoanFormValues) {
     const principalCentavos = parsePesoInput(values.principal);
@@ -419,6 +451,9 @@ function LoanForm({
       dueDate: values.dueDate ? values.dueDate : null,
       categoryId: values.categoryId,
       accountId: values.accountId,
+      // Blank means personal — send null, which is also what MOVES an existing
+      // business loan back to the personal books.
+      businessId: values.businessId ? values.businessId : null,
       note: values.note?.trim() ? values.note.trim() : null,
     };
 
@@ -504,6 +539,58 @@ function LoanForm({
 
         <FormField
           control={form.control}
+          name="businessId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Whose debt is this?</FormLabel>
+              <Select
+                value={field.value === '' ? 'personal' : field.value}
+                disabled={hasRepayments}
+                onValueChange={(v) => {
+                  const next = v === 'personal' ? '' : v;
+                  if (next === field.value) return;
+                  field.onChange(next);
+                  // The old category belongs to the other set of books, so it
+                  // cannot survive the switch — clearing it makes the picker
+                  // re-open empty rather than submit a value the API rejects.
+                  form.setValue('categoryId', '');
+                }}
+              >
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Mine (personal)">
+                      {(v) =>
+                        v === 'personal'
+                          ? 'Mine (personal)'
+                          : (businesses.find((b) => b.id === v)?.name ??
+                            'Mine (personal)')
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="personal">Mine (personal)</SelectItem>
+                  {businesses.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                {hasRepayments
+                  ? 'This loan already has repayments, so it cannot be moved between personal and business.'
+                  : chosenBusiness
+                    ? `Repayments will be recorded as a cost in ${chosenBusiness.name}, not as personal spending.`
+                    : 'Repayments count as your own spending.'}
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="categoryId"
           render={({ field }) => (
             <FormItem>
@@ -557,6 +644,13 @@ function LoanForm({
                   ))}
                 </SelectContent>
               </Select>
+              {chosenBusiness?.hasOwnAccount ? (
+                <FormDescription>
+                  {chosenBusiness.accountName} will be used instead —{' '}
+                  {chosenBusiness.name} keeps its own account, and paying its
+                  costs from anywhere else would break its reconciliation.
+                </FormDescription>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}
@@ -583,6 +677,17 @@ function RepayForm({
   onDone: () => void;
 }) {
   const repay = useRepayCreditLoan(loan.id);
+  const { data: accountData } = useAccounts();
+
+  /**
+   * The server decides this, not the form — a business that keeps its own
+   * account pays its own costs from it. Showing the resolved account is what
+   * keeps that from being a silent override: the owner reads where the money
+   * leaves from before confirming.
+   */
+  const payFrom = (accountData?.result ?? []).find(
+    (a) => a.id === loan.repayAccountId,
+  );
 
   const form = useForm<TRepayFormValues>({
     resolver: zodResolver(repaySchema),
@@ -615,6 +720,17 @@ function RepayForm({
           </span>
         </p>
 
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium">Paid from</span>
+          <span className="text-sm">{payFrom?.name ?? '—'}</span>
+          {loan.isRepayAccountFixed ? (
+            <span className="text-text-muted text-xs">
+              {loan.businessName} keeps its own account, so its costs are paid
+              from it — that is what keeps its books reconciled.
+            </span>
+          ) : null}
+        </div>
+
         <FormField
           control={form.control}
           name="amount"
@@ -630,7 +746,9 @@ function RepayForm({
                 />
               </FormControl>
               <FormDescription>
-                This records a real expense on the loan's account.
+                {loan.businessName
+                  ? `This records a real cost in ${loan.businessName}, not personal spending.`
+                  : "This records a real expense on the loan's account."}
               </FormDescription>
               <FormMessage />
             </FormItem>
