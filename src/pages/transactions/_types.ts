@@ -18,22 +18,6 @@ export type TTransaction = {
   amountCentavos: number;
   txnDate: string;
   note: string | null;
-  source: 'manual' | 'recurring' | 'installment';
-  /**
-   * Set when this expense came from marking an installment payment paid. The
-   * day panel merges such a row with its due so the same money is not shown
-   * twice.
-   */
-  installmentPaymentId: string | null;
-  /** Set when this expense is a credit-loan repayment — READ-ONLY here. */
-  creditLoanId: string | null;
-  /** Set when this row moves money into or out of a fund — READ-ONLY here. */
-  investmentId: string | null;
-  /** Set when the row belongs to a business's books. Read-only on this screen. */
-  businessId: string | null;
-  businessName: string | null;
-  recurringRuleId: string | null;
-  isEdited: boolean;
   /** For a transfer this is a display-only stand-in; the row has no category. */
   category: TTransactionRef;
   /** Source account. For a transfer, money LEAVES this one. */
@@ -43,16 +27,9 @@ export type TTransaction = {
 };
 
 export type TTransactionSummary = {
-  /** Personal income: excludes fund withdrawals and business revenue. */
   incomeCentavos: number;
-  /** Every expense row, funds and business costs included. */
-  expenseCentavos: number;
-  /** Money consumed: excludes fund contributions and business costs. */
+  /** Everything that left the account. */
   spendingCentavos: number;
-  /** Net moved into funds. Still yours. */
-  savedCentavos: number;
-  /** Business revenue minus costs. */
-  businessNetCentavos: number;
   /** Total moved by transfers. Not part of net — a transfer changes no total. */
   transferCentavos: number;
   netCentavos: number;
@@ -104,9 +81,8 @@ export type TTransactionPayload = {
   note?: string | null;
 };
 
-/** The five buckets partition the ledger: every row is in exactly one. */
-export type TTransactionBucket =
-  'spending' | 'income' | 'invested' | 'business' | 'transfer';
+/** The three buckets partition the ledger: every row is in exactly one. */
+export type TTransactionBucket = 'spending' | 'income' | 'transfer';
 
 export type TTransactionFilters = {
   bucket?: TTransactionBucket;

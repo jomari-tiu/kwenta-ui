@@ -68,9 +68,9 @@ export default function DataPage() {
       <section className="rounded-lg border bg-card p-5 shadow-sm">
         <h2 className="font-bold">Export</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Downloads everything — categories, accounts, transactions,
-          installments, loans, funds and budgets — as one JSON file. Your
-          password is <strong>not</strong> included; production sets its own.
+          Downloads everything — categories, accounts, transactions and budgets
+          — as one JSON file. Your password is <strong>not</strong> included;
+          production sets its own.
         </p>
         <Button
           className="mt-3"

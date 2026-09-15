@@ -2,13 +2,11 @@ import { useMemo, useState } from 'react';
 import {
   ChevronDown,
   Download,
-  ExternalLink,
   Pencil,
   SlidersHorizontal,
   Trash2,
   X,
 } from 'lucide-react';
-import { useNavigate } from 'react-router';
 import {
   AmountText,
   ConfirmDialog,
@@ -41,7 +39,7 @@ import { TransactionDialog } from '@/components/TransactionDialog';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useIsMobile } from '@/hooks/useMobile';
 import { formatDisplayDate } from '@/lib/date';
-import { formatPeso, formatPesoNet, parsePesoInput } from '@/lib/money';
+import { formatPeso, parsePesoInput } from '@/lib/money';
 import { useAccounts } from '@/pages/accounts/_hooks/api';
 import { useCategories } from '@/pages/categories/_hooks/api';
 import {
@@ -337,11 +335,9 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
-      {/* Split the same way the dashboard and the sections below split it. One
-          lumped "Expense" tile counted money put into funds as spending, so a
-          month that saved ₱54,000 showed a NEGATIVE net. */}
+      {/* Split the same way the dashboard and the sections below split it. */}
       {summary ? (
-        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <SummaryTile label="Matching" value={String(summary.count)} />
           <SummaryTile
             label="Income"
@@ -352,10 +348,6 @@ export default function TransactionsPage() {
             label="Spending"
             value={formatPeso(summary.spendingCentavos)}
             tone="expense"
-          />
-          <SummaryTile
-            label="Saved"
-            value={formatPeso(summary.savedCentavos)}
           />
           <SummaryTile
             label="Net"
@@ -440,23 +432,13 @@ const BUCKET_SECTIONS: TBucketSection[] = [
   {
     bucket: 'spending',
     title: 'Expenses',
-    hint: 'total spent — excludes fund contributions and business costs',
+    hint: 'total spent — excludes fund contributions',
     isMain: true,
   },
   {
     bucket: 'income',
     title: 'Income',
-    hint: 'total earned — excludes fund withdrawals and business revenue',
-  },
-  {
-    bucket: 'invested',
-    title: 'Saved & invested',
-    hint: 'net put into funds — still your money',
-  },
-  {
-    bucket: 'business',
-    title: 'Business',
-    hint: 'net cash made — capital and drawings are listed inside',
+    hint: 'total earned — excludes fund withdrawals',
   },
   {
     bucket: 'transfer',
@@ -480,8 +462,7 @@ function BucketSection({
 }) {
   const [page, setPage] = useState(1);
   // Open by default. Collapsing everything but Expenses hid whole categories of
-  // money behind a header people do not think to click — a business cost was
-  // recorded, listed correctly, and still looked missing. Empty sections remove
+  // money behind a header people do not think to click. Empty sections remove
   // themselves below, so this does not fill the page with nothing.
   const [isOpen, setIsOpen] = useState(true);
 
@@ -516,15 +497,8 @@ function BucketSection({
     : section.bucket === 'income'
       ? summary.incomeCentavos
       : section.bucket === 'spending'
-        ? summary.expenseCentavos
-        : section.bucket === 'invested'
-          ? // Net INTO funds: contributions are expenses, withdrawals income.
-            summary.expenseCentavos - summary.incomeCentavos
-          : section.bucket === 'business'
-            ? // Net cash the business made. Capital and drawings are transfers
-              // and belong to neither side of this.
-              summary.incomeCentavos - summary.expenseCentavos
-            : summary.transferCentavos;
+        ? summary.spendingCentavos
+        : summary.transferCentavos;
 
   // An empty bucket the user did not filter into is noise, not information —
   // but while filtering, "0 matches here" is the answer to their question.
@@ -545,13 +519,7 @@ function BucketSection({
         </span>
         <span className="flex shrink-0 items-center gap-3">
           <span className="text-sm tabular-nums text-text-muted">
-            {/* Funds get an explicit sign so the header sits on the same axis
-                as its rows: + means money went in, − means a net withdrawal.
-                Without it a saving month and a raiding month look alike. */}
-            {total} ·{' '}
-            {section.bucket === 'invested'
-              ? formatPesoNet(headlineCentavos)
-              : formatPeso(headlineCentavos)}
+            {total} · {formatPeso(headlineCentavos)}
           </span>
           <ChevronDown
             className={cn(
@@ -698,30 +666,6 @@ function TransactionTable({
                       : (t.note ?? '—')}
                     {t.transferAccount && t.note ? ` · ${t.note}` : ''}
                   </span>
-                  {t.creditLoanId !== null ? (
-                    <Badge variant="secondary" className="shrink-0">
-                      Loan
-                    </Badge>
-                  ) : null}
-                  {t.investmentId !== null ? (
-                    <Badge variant="secondary" className="shrink-0">
-                      Fund
-                    </Badge>
-                  ) : null}
-                  {t.businessId !== null ? (
-                    <Badge variant="secondary" className="shrink-0">
-                      {t.businessName ?? 'Business'}
-                    </Badge>
-                  ) : null}
-                  {/* Recurring rows stay EDITABLE, unlike loan and fund rows —
-                      a rule derives nothing from them, so changing one is just
-                      correcting that month. The badge says where it came from
-                      so the row is not mistaken for something typed by hand. */}
-                  {t.recurringRuleId !== null ? (
-                    <Badge variant="secondary" className="shrink-0">
-                      {t.isEdited ? 'Recurring · edited' : 'Recurring'}
-                    </Badge>
-                  ) : null}
                   {t.type === 'transfer' ? (
                     <Badge variant="secondary" className="shrink-0">
                       Transfer
@@ -783,40 +727,11 @@ function RowActions({
 }) {
   const [confirming, setConfirming] = useState(false);
   const del = useDeleteTransaction(txn.id);
-  const navigate = useNavigate();
 
   async function handleDelete() {
     await del.mutateAsync();
     toast.success('Transaction deleted');
     setConfirming(false);
-  }
-
-  // A row owned by another module is display-only here. Editing a loan
-  // repayment or a fund contribution from this screen would move a balance the
-  // screen does not show, so both actions collapse into "go where it lives".
-  const owner =
-    txn.creditLoanId !== null
-      ? { to: '/credit-loans', label: 'Credit Loans' }
-      : txn.investmentId !== null
-        ? { to: '/investments', label: 'Savings & Investments' }
-        : txn.businessId !== null
-          ? { to: '/businesses', label: 'Businesses' }
-          : null;
-
-  if (owner) {
-    return (
-      <span className="flex items-center justify-end">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void navigate(owner.to)}
-          aria-label={`Open in ${owner.label}`}
-          title={`Managed in ${owner.label}`}
-        >
-          <ExternalLink className="size-3.5" />
-        </Button>
-      </span>
-    );
   }
 
   return (

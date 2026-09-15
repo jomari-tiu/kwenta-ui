@@ -3,7 +3,6 @@ import { CATEGORIES_KEY, LABEL_KEYS, toKeyPart } from '@/lib/queryKeys';
 import type {
   TCategory,
   TCategoryKind,
-  TCategoryScope,
   TDeleteCategoryResult,
 } from '../_types';
 
@@ -22,8 +21,6 @@ export type TCategoryPayload = {
 export function useCategories(
   args: {
     kind?: TCategoryKind;
-    /** Personal pickers must not offer business categories, and vice versa. */
-    scope?: TCategoryScope;
     search?: string;
     includeArchived?: boolean;
   } = {},
@@ -34,13 +31,11 @@ export function useCategories(
     key: [
       CATEGORIES_KEY,
       toKeyPart(args.kind),
-      toKeyPart(args.scope),
       toKeyPart(args.search),
       toKeyPart(args.includeArchived),
     ],
     params: {
       ...(args.kind ? { kind: args.kind } : {}),
-      ...(args.scope ? { scope: args.scope } : {}),
       ...(args.search ? { search: args.search } : {}),
       ...(args.includeArchived ? { includeArchived: 'true' } : {}),
       pageNumber: 1,

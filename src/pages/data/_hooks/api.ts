@@ -4,11 +4,6 @@ import { todayPlainDate } from '@/lib/date';
 export type TTableCounts = {
   categories: number;
   accounts: number;
-  recurringRules: number;
-  installmentPlans: number;
-  installmentPayments: number;
-  creditLoans: number;
-  investments: number;
   transactions: number;
   budgetOverrides: number;
 };

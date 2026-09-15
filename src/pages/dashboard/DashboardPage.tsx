@@ -30,7 +30,7 @@ import {
   todayPlainDate,
 } from '@/lib/date';
 import { formatPeso, formatPeso0 } from '@/lib/money';
-import type { TDashboardSummary, TDueItem, TPeriod } from './_types';
+import type { TDashboardSummary, TPeriod } from './_types';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -49,9 +49,6 @@ export default function DashboardPage() {
   );
 
   const d = data?.result;
-  // Whether any business keeps its money in an account of its own. Without
-  // that, "cash held" is not a thing the app can report.
-  const hasOwnAccounts = (d?.businesses.withOwnAccountCount ?? 0) > 0;
 
   // Stable identity for the chart's data prop. Remapping inline would hand
   // recharts a new array on every render.
@@ -192,97 +189,6 @@ export default function DashboardPage() {
             </section>
           </dl>
 
-          {/* Spending and Saved are separate on purpose: money in a fund is
-              money you still have, and adding it to groceries would make the
-              expense figure mean nothing. income − spending − saved = net. */}
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border bg-card p-4 shadow-sm">
-              <dt className="text-2xs font-bold tracking-wide text-text-muted uppercase">
-                Invested money
-              </dt>
-              <dd className="mt-1">
-                <AmountText centavos={d.investedCentavos} size="lg" />
-                {/* "All in" counts what the pots HOLD, not just what was
-                    contributed here — otherwise it silently omits money that
-                    was already in them and reads lower than the truth. */}
-                <span className="mt-0.5 block text-2xs text-text-muted">
-                  set aside in funds ·{' '}
-                  {formatPeso0(
-                    d.disposableCentavos + d.investments.totalHeldCentavos,
-                  )}{' '}
-                  all in
-                </span>
-                {/* The headline counts only what was contributed THROUGH the
-                    app. A pot that already held money reads far smaller than it
-                    really is, so say what the funds are worth and name the gap
-                    plainly — it is untracked money, never a profit. */}
-                {d.investments.untrackedCentavos > 0 ? (
-                  <span className="mt-0.5 block text-2xs text-text-muted">
-                    worth {formatPeso0(d.investments.totalHeldCentavos)} today ·{' '}
-                    {formatPeso0(d.investments.untrackedCentavos)} of it was
-                    already there
-                  </span>
-                ) : null}
-              </dd>
-            </div>
-            {/* Only once a business exists — an empty tile teaches nothing. */}
-            {d.businesses.activeCount > 0 ? (
-              <div className="rounded-lg border bg-card p-4 shadow-sm">
-                <dt className="text-2xs font-bold tracking-wide text-text-muted uppercase">
-                  {hasOwnAccounts ? 'Business cash' : 'Business net cash'}
-                </dt>
-                <dd className="mt-1">
-                  {/* Nothing is "held" when no business keeps money separately,
-                      and a ₱0.00 headline beside a business that is doing fine
-                      reads as a bug. */}
-                  <AmountText
-                    centavos={
-                      hasOwnAccounts
-                        ? d.businesses.heldCentavos
-                        : d.businesses.netCashCentavos
-                    }
-                    size="lg"
-                  />
-                  <span className="mt-0.5 block text-2xs text-text-muted">
-                    {hasOwnAccounts
-                      ? `held by ${d.businesses.withOwnAccountCount} of ${d.businesses.activeCount} · not in Disposable money`
-                      : `revenue − costs · kept out of Income and Spending`}
-                  </span>
-                  {/* Where the money came from. Without this the tile says a
-                      business holds ₱19,860 and never says you put it there. */}
-                  {d.businesses.capitalCentavos > 0 ? (
-                    <span className="mt-0.5 block text-2xs text-text-muted">
-                      {formatPeso0(d.businesses.capitalCentavos)} put in as
-                      capital
-                      {d.businesses.drawingCentavos > 0
-                        ? ` · ${formatPeso0(d.businesses.drawingCentavos)} drawn back out`
-                        : ''}
-                    </span>
-                  ) : null}
-                  {hasOwnAccounts ? (
-                    <span
-                      className={cn(
-                        'mt-0.5 block text-2xs font-semibold',
-                        d.businesses.netCashCentavos >= 0
-                          ? 'text-ink-income'
-                          : 'text-ink-expense',
-                      )}
-                    >
-                      {d.businesses.netCashCentavos >= 0 ? '+' : '−'}
-                      {formatPeso0(Math.abs(d.businesses.netCashCentavos))} net
-                      cash
-                    </span>
-                  ) : null}
-                  {d.businesses.hasReconciliationGap ? (
-                    <span className="mt-0.5 block text-2xs font-semibold text-ink-warn">
-                      A business account has entries its books cannot explain
-                    </span>
-                  ) : null}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-
           <dl className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             <Tile label="Income" centavos={d.incomeCentavos} tone="income" />
             <Tile
@@ -291,40 +197,9 @@ export default function DashboardPage() {
               tone="expense"
             />
             <Tile
-              label="Saved"
-              centavos={d.savedCentavos}
-              hintTone="good"
-              hint={
-                d.savedCentavos > 0 && d.incomeCentavos > 0
-                  ? `${Math.round((d.savedCentavos / d.incomeCentavos) * 100)}% of income`
-                  : undefined
-              }
-            />
-            <Tile
               label="Savings rate"
               raw={
                 d.savingsRatePercent === null ? '—' : `${d.savingsRatePercent}%`
-              }
-            />
-            <Tile
-              label="Pending installments"
-              raw={String(d.installments.pendingCount)}
-              warn={d.installments.overdueCount > 0}
-              hint={
-                d.installments.overdueCount > 0
-                  ? `${d.installments.overdueCount} overdue`
-                  : undefined
-              }
-            />
-            <Tile
-              label="Loans outstanding"
-              centavos={d.creditLoans.totalOutstandingCentavos}
-              tone="expense"
-              warn={d.creditLoans.overdueCount > 0}
-              hint={
-                d.creditLoans.overdueCount > 0
-                  ? `${d.creditLoans.overdueCount} overdue`
-                  : undefined
               }
             />
           </dl>
@@ -334,8 +209,6 @@ export default function DashboardPage() {
             summary={d}
             onClose={() => setExplaining(null)}
           />
-
-          <DueList items={d.dueItems} />
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
@@ -561,19 +434,6 @@ function ExplainDialog({
           centavos: summary.spendingCentavos,
           op: '-',
         },
-        {
-          label: 'Money you set aside in funds',
-          centavos: summary.savedCentavos,
-          op: '-',
-        },
-        {
-          label:
-            summary.businessNetCentavos < 0
-              ? 'What your businesses spent'
-              : 'What your businesses made',
-          centavos: Math.abs(summary.businessNetCentavos),
-          op: summary.businessNetCentavos < 0 ? '-' : '+',
-        },
         { label: 'Net this period', centavos: summary.netCentavos, op: '=' },
       ]
     : [
@@ -581,11 +441,6 @@ function ExplainDialog({
           label: 'All your accounts, credit cards excluded',
           centavos: accountsTotal,
           op: '+',
-        },
-        {
-          label: 'Money that belongs to your businesses',
-          centavos: accountsTotal - summary.disposableCentavos,
-          op: '-',
         },
         {
           label: 'Disposable money',
@@ -607,7 +462,7 @@ function ExplainDialog({
 
         <p className="text-sm text-text-muted">
           {isNet
-            ? `Of what you earned in ${summary.label}, this is what is left after spending, after moving money into funds, and after what your businesses took in or spent. It covers this period only.`
+            ? `Of what you earned in ${summary.label}, this is what is left after spending and after moving money into funds. It covers this period only.`
             : 'What is actually in your accounts right now, whenever it arrived. Credit cards are left out because their balance is what you owe.'}
         </p>
 
@@ -653,8 +508,8 @@ function ExplainDialog({
 
         <p className="text-2xs text-text-muted">
           {isNet
-            ? 'Your businesses are included, because they spend from these same accounts. Over all time this figure equals the money actually in your accounts.'
-            : 'A business keeps its own money, so whatever its books say it holds comes off the top — otherwise it would look like yours to spend.'}
+            ? 'Over all time this figure equals the money actually in your accounts.'
+            : 'Money already moved into a fund is still yours, but it is not counted here — it is not sitting in an account to spend.'}
         </p>
       </DialogContent>
     </Dialog>
@@ -736,97 +591,4 @@ function DashboardSkeleton() {
       </div>
     </div>
   );
-}
-
-const DUE_LIMIT = 8;
-
-/**
- * What is still owed, itemised — the question the "Pending installments: 3"
- * tile raises but cannot answer.
- *
- * Recurring rules are absent on purpose: a rule writes its transaction on its
- * date without asking, so it has no unpaid state to report. Listing scheduled
- * charges here would mix "you owe this" with "this will happen".
- */
-function DueList({ items }: { items: TDueItem[] }) {
-  const navigate = useNavigate();
-  const shown = items.slice(0, DUE_LIMIT);
-  const overdueCount = items.filter((i) => i.status === 'overdue').length;
-
-  return (
-    <section className="rounded-lg border bg-card shadow-sm">
-      <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
-        <h2 className="text-sm font-bold">Due &amp; unpaid</h2>
-        {overdueCount > 0 ? (
-          <span className="text-2xs font-bold text-danger uppercase">
-            {overdueCount} overdue
-          </span>
-        ) : null}
-      </header>
-
-      {items.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-text-muted">
-          Nothing outstanding. Every installment and loan is settled.
-        </p>
-      ) : (
-        <ul>
-          {shown.map((item) => (
-            <li
-              key={`${item.kind}-${item.id}-${item.dueDate ?? 'none'}`}
-              className="flex items-center gap-3 border-b px-4 py-2.5 last:border-b-0"
-            >
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-sm font-medium">
-                  {item.name}
-                </span>
-                <span className="truncate text-xs text-text-muted">
-                  {item.detail ? `${item.detail} · ` : ''}
-                  <DueWhen item={item} />
-                </span>
-              </span>
-
-              <AmountText centavos={item.amountCentavos} kind="expense" />
-
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={`Open ${item.name}`}
-                onClick={() =>
-                  void navigate(
-                    item.kind === 'loan' ? '/credit-loans' : '/installments',
-                  )
-                }
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {items.length > DUE_LIMIT ? (
-        <p className="border-t px-4 py-2 text-xs text-text-muted">
-          and {items.length - DUE_LIMIT} more
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-/** Words, not a bare date — "3 days late" is read faster than "Aug 27, 2026". */
-function DueWhen({ item }: { item: TDueItem }) {
-  if (item.status === 'undated') {
-    return <span>no due date</span>;
-  }
-  const days = item.daysUntil ?? 0;
-  if (days < 0) {
-    return (
-      <span className="font-semibold text-danger">
-        {-days === 1 ? '1 day late' : `${-days} days late`}
-      </span>
-    );
-  }
-  if (days === 0) return <span className="font-semibold text-warn">today</span>;
-  if (days === 1) return <span className="text-warn">tomorrow</span>;
-  return <span>in {days} days</span>;
 }

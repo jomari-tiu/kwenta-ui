@@ -29,7 +29,7 @@ export default function LoginPage() {
 
   if (getToken()) {
     const from = (location.state as { from?: string } | null)?.from;
-    return <Navigate to={from ?? '/calendar'} replace />;
+    return <Navigate to={from ?? '/transactions'} replace />;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -48,7 +48,7 @@ export default function LoginPage() {
       // Clear BEFORE navigating so no stale pre-auth cache is rendered.
       queryClient.clear();
       toast.success('Welcome back');
-      void navigate('/calendar', { replace: true });
+      void navigate('/transactions', { replace: true });
     } catch (err) {
       setError(extractErrorMessages(err)[0] ?? 'Could not sign in');
     } finally {

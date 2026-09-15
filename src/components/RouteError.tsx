@@ -15,8 +15,10 @@ export function RouteError() {
         title="This page hit a problem"
         description={message}
         action={
-          <Button onClick={() => void navigate('/calendar', { replace: true })}>
-            Back to calendar
+          <Button
+            onClick={() => void navigate('/transactions', { replace: true })}
+          >
+            Back to transactions
           </Button>
         }
       />

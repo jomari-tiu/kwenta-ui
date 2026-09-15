@@ -9,8 +9,10 @@ export default function NotFoundPage() {
       title="Page not found"
       description="That route does not exist."
       children={
-        <Button onClick={() => void navigate('/calendar', { replace: true })}>
-          Back to calendar
+        <Button
+          onClick={() => void navigate('/transactions', { replace: true })}
+        >
+          Back to transactions
         </Button>
       }
     />

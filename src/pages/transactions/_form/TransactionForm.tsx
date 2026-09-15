@@ -98,12 +98,8 @@ function Fields({
   const isTransfer = type === 'transfer';
   // A transfer has no category, so do not fetch one — 'transfer' is not a
   // category kind and the request would 400.
-  // Personal only: business entries are created in the Businesses module,
-  // against that business's own account, so offering business categories here
-  // would produce an untagged row that never reaches its books.
   const { data: categoryData } = useCategories({
     kind: isTransfer ? 'expense' : type,
-    scope: 'personal',
   });
   const { data: accountData } = useAccounts();
 

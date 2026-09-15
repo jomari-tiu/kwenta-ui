@@ -78,10 +78,9 @@ call; `ds/Datepicker.tsx` sets it as a default so no call site can forget.
 
 Keys live in **one** file, `lib/queryKeys.ts`, deviating from the POS's
 module-scoped `<NAME>_KEY` convention. In the POS, modules are independent. Here
-the entire product is cross-cutting aggregates — a transaction edit legitimately
-touches five other modules' caches — so module-scoped keys would mean five real
-import edges between data layers, plus a cycle the moment the calendar
-references the transactions key.
+the product is cross-cutting aggregates — a transaction edit legitimately
+touches several other modules' caches — so module-scoped keys would mean real
+import edges between data layers.
 
 `LEDGER_KEYS` is every query whose answer depends on the ledger. Any mutation
 that moves money invalidates all of it.
@@ -89,9 +88,6 @@ that moves money invalidates all of it.
 | Mutation | Invalidates |
 | --- | --- |
 | transaction create / update / delete | `LEDGER_KEYS` |
-| installment mark paid / unmark | `LEDGER_KEYS` |
-| recurring create / update / pause / delete | `LEDGER_KEYS` |
-| plan create / update / delete | installments, calendar, dashboard |
 | category create / update / delete | categories + `LABEL_KEYS` |
 | account create / update / delete | accounts, transactions, dashboard |
 | budget set / delete | budgets, dashboard |
@@ -101,23 +97,17 @@ Notes:
 - Budget keys are **root-only** (`[BUDGETS_KEY]`, not `[BUDGETS_KEY, month]`)
   because editing a transaction's date and category can move the meter in *two*
   months and *two* categories at once.
-- Marking an installment paid creates an expense server-side, so it has the
-  identical blast radius as a transaction write. Both use the same constant so
-  they cannot drift.
-- **Six invalidations is not expensive.** `invalidateQueries` only *refetches*
-  mounted queries; the rest are marked stale and refetch lazily on next mount.
-  On the calendar with the day panel open, exactly two queries are mounted — so
-  a transaction edit costs **two requests, not six**. Do not "optimize" this
+- **Four invalidations is not expensive.** `invalidateQueries` only *refetches*
+  mounted queries; the rest are marked stale and refetch lazily on next mount, so
+  a transaction edit usually costs one or two requests. Do not "optimize" this
   into narrow keys that then go stale.
 - Use `toKeyPart()` for every optional key part. `useGet`'s key is `string[]`, so
   if one call site passes `undefined` and another passes `''`, you get two cache
   entries for identical data and a UI that flickers between them.
 
 **Every money-moving mutation is defined exactly once, in the module that owns
-the entity.** The calendar's `_hooks/api.ts` holds queries only; the day panel
-imports its mutations from `pages/transactions/_hooks/api`. Two copies would
-mean two invalidation lists, and the day someone updates one and not the other
-is the day the dashboard goes quietly stale.
+the entity.** Two copies would mean two invalidation lists, and the day someone
+updates one and not the other is the day the dashboard goes quietly stale.
 
 ---
 
@@ -179,32 +169,3 @@ So: `bg-chart-income` for marks, `text-ink-income` for text. Never mix them.
    already shows, and past ~7 hues adjacent classes blur under CVD regardless.
    Cap at 8 rows plus a folded "Other (n)".
 
----
-
-## 5. Installment schedule — the shared algorithm
-
-The client generates the preview; the server generates the real schedule. Two
-implementations of one algorithm in two languages **will** diverge, so the
-algorithm is specified here once and `_schedule.test.ts` is its executable spec,
-mirrored case-for-case by the API's `installments.split.test.ts`.
-
-**Money split** — remainder on the **last** payment, matching how PH lenders
-amortize:
-
-```
-base = floor(total / months)
-payments 1..n-1 = base
-payment n       = total − base × (n − 1)
-```
-
-Invariant: `sum(payments) === total`, exactly, for every input.
-
-**Date clamping** — `dayOfMonth: 31` clamps to the month's last day, and
-clamping **must not move the anchor**: Jan 31 → Feb 28 → **Mar 31**. Generate
-each due date independently from `startMonth + i`, **never** by iterating from
-the previous date. `addMonths(Jan 31, 1)` is Feb 28 in date-fns, and `addMonths`
-from *that* is Mar 28 — the day silently drifts for the rest of the plan. That
-drift is the specific bug this function exists to not have.
-
-Safety net: after a successful create, compare the returned payment count and
-total against what was previewed, and `toast.warning` on mismatch.

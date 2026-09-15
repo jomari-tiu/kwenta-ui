@@ -48,8 +48,8 @@ export function useAccountBalances() {
 }
 
 // Editing an opening balance changes the derived balance and the dashboard net;
-// account names render inside cached transaction rows. NOT calendar (day cells
-// don't show accounts) and NOT budgets (caps are per-category).
+// account names render inside cached transaction rows. NOT budgets — caps are
+// per-category, so no account edit can move one.
 const ACCOUNT_INVALIDATIONS = [
   [ACCOUNTS_KEY],
   [TRANSACTIONS_KEY],
@@ -96,7 +96,6 @@ export type TAccountHistoryRow = {
   amountCentavos: number;
   txnDate: string;
   note: string | null;
-  source: string;
   categoryName: string;
   categoryIcon: string | null;
   categoryColor: string | null;

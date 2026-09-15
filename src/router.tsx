@@ -19,28 +19,11 @@ import { Skeleton } from '@/components/ui/skeleton';
  * RULE: routes never fetch. `loader` and `action` are banned.
  */
 const LoginPage = lazy(() => import('@/pages/login/LoginPage'));
-const CalendarPage = lazy(() => import('@/pages/calendar/CalendarPage'));
 const TransactionsPage = lazy(
   () => import('@/pages/transactions/TransactionsPage'),
 );
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
-const InstallmentsPage = lazy(
-  () => import('@/pages/installments/InstallmentsPage'),
-);
-const InstallmentDetailPage = lazy(
-  () => import('@/pages/installments/InstallmentDetailPage'),
-);
-const CreditLoansPage = lazy(
-  () => import('@/pages/credit-loans/CreditLoansPage'),
-);
 const DataPage = lazy(() => import('@/pages/data/DataPage'));
-const BusinessesPage = lazy(() => import('@/pages/businesses/BusinessesPage'));
-const InvestmentsPage = lazy(
-  () => import('@/pages/investments/InvestmentsPage'),
-);
-const RecurringRulesPage = lazy(
-  () => import('@/pages/recurring-rules/RecurringRulesPage'),
-);
 const CategoriesPage = lazy(() => import('@/pages/categories/CategoriesPage'));
 const AccountsPage = lazy(() => import('@/pages/accounts/AccountsPage'));
 const BudgetsPage = lazy(() => import('@/pages/budgets/BudgetsPage'));
@@ -72,22 +55,10 @@ export const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <Navigate to="/calendar" replace /> },
-          { path: '/calendar', element: page(<CalendarPage />) },
+          { index: true, element: <Navigate to="/transactions" replace /> },
           { path: '/transactions', element: page(<TransactionsPage />) },
           { path: '/dashboard', element: page(<DashboardPage />) },
-          // Static segments before /:id — unlike Next's file routing this is an
-          // ordering concern you have to remember.
-          { path: '/installments', element: page(<InstallmentsPage />) },
-          {
-            path: '/installments/:id',
-            element: page(<InstallmentDetailPage />),
-          },
-          { path: '/credit-loans', element: page(<CreditLoansPage />) },
-          { path: '/investments', element: page(<InvestmentsPage />) },
-          { path: '/businesses', element: page(<BusinessesPage />) },
           { path: '/data', element: page(<DataPage />) },
-          { path: '/recurring-rules', element: page(<RecurringRulesPage />) },
           { path: '/budgets', element: page(<BudgetsPage />) },
           { path: '/categories', element: page(<CategoriesPage />) },
           { path: '/accounts', element: page(<AccountsPage />) },

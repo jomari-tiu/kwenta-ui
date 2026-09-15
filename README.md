@@ -61,9 +61,8 @@ Three amendments to the POS conventions, each deliberate:
 1. **`<Name>Page.tsx`, not `page.tsx`.** Next forced that filename; Vite
    doesn't. Twelve tabs all reading `page.tsx` makes `Ctrl+P` useless.
 2. **The `_` prefix stays**, re-purposed to mean "not a route file."
-3. **Dialog CRUD for categories / accounts / budgets / recurring.** A full-page
-   form per edit is three navigations to rename "Groceries". Installments keeps
-   the full-page treatment because its form is large.
+3. **Dialog CRUD for categories / accounts / budgets.** A full-page form per
+   edit is three navigations to rename "Groceries".
 
 ### Three load-bearing ESLint rules
 

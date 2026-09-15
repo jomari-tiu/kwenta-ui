@@ -12,10 +12,8 @@ export type AmountTextProps = {
   /**
    * 'income' / 'expense' force the sign and colour by direction.
    * 'net' signs by value. 'plain' renders an unsigned magnitude.
-   * 'saved' signs by value like 'net' but colours on the SAVINGS axis — pass it
-   * a value from fundSignedCentavos(), not a raw ledger amount.
    */
-  kind?: 'income' | 'expense' | 'net' | 'plain' | 'saved';
+  kind?: 'income' | 'expense' | 'net' | 'plain';
   size?: 'sm' | 'md' | 'lg' | 'hero';
   /** Drop the decimals — for stat tiles and hero figures. */
   rounded?: boolean;
@@ -37,9 +35,7 @@ const SIZES = {
  * channel carrying direction.
  *
  * Uses the `--ink-*` token family (WCAG 4.5:1 text contrast), NOT the
- * `--chart-*` marks family (3:1 mark contrast). Never mix them — which is why
- * 'saved' reaches for `--ink-saved` rather than the `--good` mark the calendar
- * uses for the same idea.
+ * `--chart-*` marks family (3:1 mark contrast). Never mix them.
  */
 export function AmountText({
   centavos,
@@ -60,7 +56,7 @@ export function AmountText({
         ? rounded
           ? `−${magnitude}`
           : formatPesoSigned(centavos, 'expense')
-        : kind === 'net' || kind === 'saved'
+        : kind === 'net'
           ? rounded
             ? signedRounded(centavos, magnitude)
             : formatPesoNet(centavos)
@@ -77,15 +73,7 @@ export function AmountText({
             : centavos < 0
               ? 'text-ink-expense'
               : 'text-text-muted'
-          : // Its own ink, not income green: a contribution was not earned, and
-            // green is exactly the misreading this kind exists to prevent.
-            // Taking money back out of a fund is not spending either, so the
-            // other direction is muted rather than expense red.
-            kind === 'saved'
-            ? centavos > 0
-              ? 'text-ink-saved'
-              : 'text-text-muted'
-            : 'text-text';
+          : 'text-text';
 
   return (
     <span
